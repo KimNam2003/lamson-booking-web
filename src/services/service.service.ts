@@ -65,29 +65,45 @@ export class ServiceService {
     return service;
   }
 
-  // Update a service
+  //update services
   async update(id: number, serviceDto: ServiceDto): Promise<Service> {
-    const service = await this.serviceRepo.findOneBy({ id });
+    const service = await this.serviceRepo.findOne({
+      where: { id },
+      relations: ['specialty'],
+    });
+
     if (!service) {
       throw new NotFoundException(`Service with ID ${id} not found`);
     }
 
-    const duplicate = await this.serviceRepo.findOneBy({ name: serviceDto.name });
-    if (duplicate && duplicate.id !== id) {
-      throw new ConflictException(`Service name "${serviceDto.name}" is already in use`);
+    const name = serviceDto.name?.trim();
+    if (name) {
+      const duplicate = await this.serviceRepo.findOneBy({ name });
+      if (duplicate && duplicate.id !== id) {
+        throw new ConflictException(`Service name "${name}" is already in use`);
+      }
+      serviceDto.name = name;
     }
 
-    Object.assign(service, {
-      ...serviceDto,
-      specialty: serviceDto.specialty_id
-        ? { id: serviceDto.specialty_id } as any
-        : null,
-    });
+    const { specialty_id, ...restDto } = serviceDto;
+    Object.assign(service, restDto);
+    if ('specialty_id' in serviceDto) {
+      if (specialty_id === null) {
+        throw new BadRequestException(`Field "specialty_id" cannot be null`);
+      }
 
+      const specialty = await this.specialtyRepo.findOneBy({ id: specialty_id });
+      if (!specialty) {
+        throw new NotFoundException(`Specialty with ID ${specialty_id} not found`);
+      }
+
+      service.specialty = specialty;
+    }
     try {
       return await this.serviceRepo.save(service);
     } catch (error) {
-      throw new BadRequestException(`Failed to update service: ${error.message}`);
+      console.error('Error while updating service:', error);
+      throw new BadRequestException(`Failed to update service: ${error?.message || 'Unknown error'}`);
     }
   }
 

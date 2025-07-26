@@ -1,11 +1,5 @@
-import {
-  IsString,
-  IsOptional,
-  MaxLength,
-  IsNumber,
-  Min,
-  IsPositive,
-} from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min, ValidateIf } from 'class-validator';
 
 export class ServiceDto {
   @IsString()
@@ -17,18 +11,20 @@ export class ServiceDto {
   @IsOptional()
   description?: string;
 
-  @IsNumber()
   @IsOptional()
-  @Min(1) 
+  @IsNumber()
+  @Min(1)
   duration_minutes?: number;
 
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   @IsPositive()
+  @IsNotEmpty()
   price?: number;
 
-  @IsNumber()
   @IsOptional()
+  @IsNumber()
   @IsPositive()
+  @IsNotEmpty()
   specialty_id?: number;
 }

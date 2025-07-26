@@ -1,29 +1,51 @@
-// service.controller.ts
-import { Controller, Post, Get, Body, Param, Delete } from '@nestjs/common';
-import { ServiceDto } from './dto/service.dto';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ServiceService } from './service.service';
+import { ServiceDto } from './dto/service.dto';
+import { Service } from './entities/service.entity';
 
 @Controller('services')
 export class ServiceController {
-  constructor(private serviceService: ServiceService) {}
+  constructor(private readonly serviceService: ServiceService) {}
 
-  @Post()
-  create(@Body() serviceDto: ServiceDto) {
-    return this.serviceService.create(serviceDto);
-  }
-
+  // GET /services
   @Get()
-  findAll() {
+  async findAll(): Promise<Service[]> {
     return this.serviceService.findAll();
   }
 
+  // GET /services/:id
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.serviceService.findOne(+id); // ép kiểu vì transform: true đã bật
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Service> {
+    return this.serviceService.findOne(id);
   }
 
-  @Delete(':id')  
-  remove(@Param('id') id: string) {
-    return this.serviceService.remove(+id);
+  // POST /services
+  @Post()
+  async create(@Body() serviceDto: ServiceDto): Promise<Service> {
+    return this.serviceService.create(serviceDto);
+  }
+
+  // PATCH /services/:id
+  @Patch(':id')
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() serviceDto: ServiceDto
+  ): Promise<Service> {
+    return this.serviceService.update(id, serviceDto);
+  }
+
+  // DELETE /services/:id
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+    return this.serviceService.remove(id);
   }
 }
