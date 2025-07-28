@@ -5,6 +5,8 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServiceModule } from './services/service.module';
+import { UsersModule } from './users/users.module';
+import { DoctorModule } from './doctors/doctor.module';
 
 @Module({
   imports: [ConfigModule.forRoot(),
@@ -16,7 +18,7 @@ import { ServiceModule } from './services/service.module';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       autoLoadEntities:true
-    }),SpecialtiesModule ,ServiceModule
+    }),SpecialtiesModule ,ServiceModule,UsersModule,DoctorModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,0 +1,49 @@
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+} from 'typeorm';
+import { User } from 'src/users/entities/user.entity';
+import { Specialty } from 'src/specialties/entities/specialty.entity';
+import { DoctorService } from 'src/doctor-services/entities/doctor-service.entity';
+
+@Entity('doctors')
+export class Doctor {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ name: 'user_id', unique: true })
+  userId: number;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
+  @Column({ name: 'full_name', type: 'varchar', length: 100 })
+  fullName: string;
+
+  @Column({ type: 'varchar', length: 20 })
+  phone: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ name: 'experience_years', type: 'int', nullable: true })
+  experienceYears: number;
+
+  @Column({ name: 'specialty_id', nullable: true })
+  specialtyId: number;
+
+  @ManyToOne(() => Specialty, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'specialty_id' })
+  specialty: Specialty;
+
+  @Column({ name: 'avatar_url', type: 'varchar', length: 255, nullable: true })
+  avatarUrl: string;
+
+  @OneToMany(() => DoctorService, (ds) => ds.doctor)
+  doctorServices: DoctorService[];
+}

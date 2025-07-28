@@ -103,7 +103,7 @@ export class ServiceService {
       return await this.serviceRepo.save(service);
     } catch (error) {
       console.error('Error while updating service:', error);
-      throw new BadRequestException(`Failed to update service: ${error?.message || 'Unknown error'}`);
+      throw new BadRequestException(`Failed to update service: ${error?.message}`);
     }
   }
 
