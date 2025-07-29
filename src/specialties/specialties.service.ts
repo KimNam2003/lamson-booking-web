@@ -64,7 +64,7 @@ async update(id: number, specialtyDto: SpecialtyDto): Promise<Specialty> {
   }
 }
 
-// Xoá chuyên khoa sau khi kiểm tra tồn tại
+// Xoá chuyên khoa bằng id
   async remove(id: number): Promise<{ message: string }> {
     const specialty = await this.specialtyRepo.findOneBy({ id });
     if (!specialty) {

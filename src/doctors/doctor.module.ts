@@ -14,7 +14,7 @@ import { DoctorServices } from 'src/doctor-services/entities/doctor-service.enti
   controllers: [DoctorController],
   providers: [DoctorService],
   imports: [
-    TypeOrmModule.forFeature([Doctor, Specialty, Service, DoctorServices]),
+    TypeOrmModule.forFeature([User,Doctor, Specialty, Service, DoctorServices]),
   ],
 })
 export class DoctorModule {}

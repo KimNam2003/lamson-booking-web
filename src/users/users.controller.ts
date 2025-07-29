@@ -19,7 +19,7 @@ import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
+  @Post('sign-up')
   async createUser(
     @Body() body: { user: UserDto; profile: DoctorDto | PatientDto },
   ) {
