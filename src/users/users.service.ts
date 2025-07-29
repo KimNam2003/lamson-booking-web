@@ -15,7 +15,7 @@ import { UserRole } from 'src/common/enums/role.enum';
 import { Doctor } from 'src/doctors/entities/doctor.entity';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
-import { DoctorService } from 'src/doctor-services/entities/doctor-service.entity';
+import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 import { UserDto } from './dto/user.dto';
 import { PatientDto } from 'src/patients/dto/patient.dto';
 import { DoctorDto } from 'src/doctors/dto/doctor.dto';
@@ -37,8 +37,8 @@ export class UserService {
     @InjectRepository(Specialty)
     private readonly specialtyRepository: Repository<Specialty>,
 
-    @InjectRepository(DoctorService)
-    private readonly doctorServiceRepository: Repository<DoctorService>,
+    @InjectRepository(DoctorServices)
+    private readonly doctorServiceRepository: Repository<DoctorServices>,
 
     @InjectRepository(Service)
     private readonly serviceRepository: Repository<Service>,
@@ -54,8 +54,9 @@ export class UserService {
 
     try {
       const { email, password, role } = userDto;
-
-      const existingUser = await queryRunner.manager.findOne(User, { where: { email } });
+      const existingUser = await queryRunner.manager.findOne(User, {
+        where: { email },
+      });
       if (existingUser) {
         throw new ConflictException('Email already exists');
       }
@@ -73,7 +74,7 @@ export class UserService {
 
       if (role === UserRole.Doctor) {
         const doctorDto = profileData as DoctorDto;
-        const { specialtyId, serviceIds = [], ...restDoctorDto } = doctorDto;
+        const { specialtyId, ...restDoctorDto } = doctorDto;
 
         const specialty = await queryRunner.manager.findOne(Specialty, {
           where: { id: specialtyId },
@@ -88,26 +89,7 @@ export class UserService {
           user: savedUser,
         });
 
-        const savedDoctor = await queryRunner.manager.save(Doctor, doctor);
-
-        if (serviceIds.length > 0) {
-          const services = await queryRunner.manager.find(Service, {
-            where: { id: In(serviceIds) },
-          });
-
-          if (services.length !== serviceIds.length) {
-            throw new NotFoundException('Some service IDs are invalid');
-          }
-
-          const doctorServices = services.map((service) =>
-            this.doctorServiceRepository.create({
-              doctor: savedDoctor,
-              service,
-            }),
-          );
-
-          await queryRunner.manager.save(DoctorService, doctorServices);
-        }
+        await queryRunner.manager.save(Doctor, doctor);
       }
 
       if (role === UserRole.Patient) {
@@ -148,7 +130,6 @@ export class UserService {
       }
     }
 
-    // Cập nhật email nếu có
     if (dto.email) {
       const existing = await this.userRepository.findOne({ where: { email: dto.email } });
       if (existing && existing.id !== id) {
@@ -157,7 +138,6 @@ export class UserService {
       user.email = dto.email;
     }
 
-    // Cập nhật mật khẩu nếu có
     if (dto.newPassword) {
       const salt = await bcrypt.genSalt();
       user.passwordHash = await bcrypt.hash(dto.newPassword, salt);

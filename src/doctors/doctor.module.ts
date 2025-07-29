@@ -8,14 +8,14 @@ import { DoctorController } from './doctor.controller';
 import { User } from 'src/users/entities/user.entity';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
 import { Service } from 'src/services/entities/service.entity';
-import { DoctorService as DoctorServiceEntity } from 'src/doctor-services/entities/doctor-service.entity';
+import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Doctor,User, Specialty, Service,  DoctorServiceEntity,]),
-  ],
   controllers: [DoctorController],
   providers: [DoctorService],
-  exports: [DoctorService],
+  imports: [
+    TypeOrmModule.forFeature([Doctor, Specialty, Service, DoctorServices]),
+  ],
 })
 export class DoctorModule {}
+

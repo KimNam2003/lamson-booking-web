@@ -1,12 +1,13 @@
 import {
   Controller,
   Get,
-  Post,
   Param,
-  Body,
-  Put,
-  Delete,
   ParseIntPipe,
+  Patch,
+  Body,
+  Query,
+  Post,
+  Delete,
 } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { DoctorDto } from './dto/doctor.dto';
@@ -15,28 +16,70 @@ import { DoctorDto } from './dto/doctor.dto';
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
+  // 1. Get all doctors (with pagination)
   @Get()
-  getAll() {
-    return this.doctorService.findAll();
+  getAllDoctors(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    return this.doctorService.getAllDoctors(Number(page), Number(limit));
   }
 
+  // 2. Get doctor by doctor ID
   @Get(':id')
-  getOne(@Param('id', ParseIntPipe) id: number) {
-    return this.doctorService.findOne(id);
+  getDoctorById(@Param('id', ParseIntPipe) id: number) {
+    return this.doctorService.getDoctorById(id);
   }
 
-  @Post()
-  create(@Body() dto: DoctorDto) {
-    return this.doctorService.create(dto);
+  // 3. Get doctor by user ID
+  @Get('user/:userId')
+  getDoctorByUserId(@Param('userId', ParseIntPipe) userId: number) {
+    return this.doctorService.getDoctorByUserId(userId);
   }
 
-  @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: DoctorDto) {
-    return this.doctorService.update(id, dto);
+  // 4. Get doctors by specialty
+  @Get('specialty/:specialtyId')
+  getDoctorsBySpecialty(@Param('specialtyId', ParseIntPipe) specialtyId: number) {
+    return this.doctorService.getDoctorsBySpecialty(specialtyId);
   }
 
+  // 5. Update doctor
+  @Patch(':id')
+  updateDoctor(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DoctorDto,
+  ) {
+    return this.doctorService.updateDoctor(id, dto);
+  }
+
+  // 6. Assign services to doctor
+  @Post(':id/services')
+  assignServices(
+    @Param('id', ParseIntPipe) doctorId: number,
+    @Body() body: { serviceIds: number[] },
+  ) {
+    return this.doctorService.assignServices(doctorId, body.serviceIds);
+  }
+
+  // 7. Delete doctor by doctor ID
   @Delete(':id')
-  delete(@Param('id', ParseIntPipe) id: number) {
-    return this.doctorService.remove(id);
+  deleteDoctor(@Param('id', ParseIntPipe) id: number) {
+    return this.doctorService.deleteDoctor(id);
+  }
+
+  // 8. Get doctors by service ID
+  @Get('service/:serviceId')
+  getDoctorsByService(@Param('serviceId', ParseIntPipe) serviceId: number) {
+    return this.doctorService.getDoctorsByService(serviceId);
+  }
+
+  // 9. Search doctors by keyword (with pagination)
+  @Get('search/keyword')
+  searchDoctors(
+    @Query('keyword') keyword: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    return this.doctorService.searchDoctors(keyword, Number(page), Number(limit));
   }
 }

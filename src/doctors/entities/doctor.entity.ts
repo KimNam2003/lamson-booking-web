@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
-import { DoctorService } from 'src/doctor-services/entities/doctor-service.entity';
+import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 
 @Entity('doctors')
 export class Doctor {
@@ -44,6 +44,6 @@ export class Doctor {
   @Column({ name: 'avatar_url', type: 'varchar', length: 255, nullable: true })
   avatarUrl: string;
 
-  @OneToMany(() => DoctorService, (ds) => ds.doctor)
-  doctorServices: DoctorService[];
+  @OneToMany(() => DoctorServices, (ds) => ds.doctor)
+  doctorServices: DoctorServices[];
 }
