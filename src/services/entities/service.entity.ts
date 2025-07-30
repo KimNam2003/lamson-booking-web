@@ -22,4 +22,7 @@ export class Service {
   @ManyToOne(() => Specialty, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'specialty_id' })
   specialty: Specialty;
+
+  // @OneToMany(() => AppointmentSlot, (slot) => slot.service)
+  // appointmentSlots: AppointmentSlot[];
 }

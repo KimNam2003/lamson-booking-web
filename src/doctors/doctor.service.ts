@@ -1,7 +1,5 @@
 import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
+  Injectable, NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Doctor } from './entities/doctor.entity';

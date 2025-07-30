@@ -9,6 +9,7 @@ import {
 import { User } from 'src/users/entities/user.entity';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
 import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
+import { Schedule } from 'src/schedules/entities/schedule.entity';
 
 @Entity('doctors')
 export class Doctor {
@@ -46,4 +47,7 @@ export class Doctor {
 
   @OneToMany(() => DoctorServices, (ds) => ds.doctor)
   doctorServices: DoctorServices[];
+
+  @OneToMany(() => Schedule, (schedule) => schedule.doctor)
+  schedules: Schedule[];
 }

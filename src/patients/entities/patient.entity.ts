@@ -4,9 +4,11 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Gender } from 'src/common/enums/gender.enum';
 import { User } from 'src/users/entities/user.entity';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Entity('patients')
 export class Patient {
@@ -31,4 +33,8 @@ export class Patient {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @OneToMany(() => Appointment, (appointment) => appointment.patient)
+  appointments: Appointment[];
+
 }
