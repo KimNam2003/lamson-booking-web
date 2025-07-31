@@ -2,7 +2,7 @@ import { IsInt, IsDateString } from 'class-validator';
 
 export class GenerateSlotDto {
   @IsInt()
-  doctorId: number;
+  scheduleId: number;
 
   @IsInt()
   serviceId: number;

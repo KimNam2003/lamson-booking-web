@@ -19,18 +19,23 @@ export class ScheduleService {
   async create(dto: ScheduleDto) {
     const existing = await this.scheduleRepo.findOne({
       where: {
-        doctor: { id: dto.doctorId } ,
+        doctor: { id: dto.doctorId },
         weekday: dto.weekday,
         startTime: dto.startTime,
         endTime: dto.endTime,
       },
+      relations: ['doctor'],
     });
 
     if (existing) {
       throw new BadRequestException('This schedule already exists');
     }
 
-    const schedule = this.scheduleRepo.create(dto);
+    const schedule = this.scheduleRepo.create({
+        ...dto,
+    doctor: { id: dto.doctorId }
+  },
+)
     return this.scheduleRepo.save(schedule);
   }
 

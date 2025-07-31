@@ -7,9 +7,6 @@ export class CreateAppointmentDto {
   @IsInt()
   slotId: number;
 
-  @IsInt()
-  serviceId: number;
-
   @IsOptional()
   @IsString()
   note?: string;

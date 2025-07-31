@@ -5,10 +5,10 @@ import { AppointmentSlotService } from './appointment-slot.service';
 import { AppointmentSlotController } from './appointment-slot.controller';
 import { Schedule } from 'src/schedules/entities/schedule.entity';
 import { Service } from 'src/services/entities/service.entity';
-import { Doctor } from 'src/doctors/entities/doctor.entity';
+import { DoctorDayOff } from 'src/doctor-of-days/entities/doctor-off-day.enttity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AppointmentSlot, Schedule, Service, Doctor])],
+  imports: [TypeOrmModule.forFeature([AppointmentSlot, Schedule, Service,DoctorDayOff])],
   providers: [AppointmentSlotService],
   controllers: [AppointmentSlotController],
 })

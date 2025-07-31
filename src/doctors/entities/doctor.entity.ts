@@ -10,6 +10,7 @@ import { User } from 'src/users/entities/user.entity';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
 import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 import { Schedule } from 'src/schedules/entities/schedule.entity';
+import { DoctorDayOff } from 'src/doctor-of-days/entities/doctor-off-day.enttity';
 
 @Entity('doctors')
 export class Doctor {
@@ -50,4 +51,7 @@ export class Doctor {
 
   @OneToMany(() => Schedule, (schedule) => schedule.doctor)
   schedules: Schedule[];
+
+  @OneToMany(() => DoctorDayOff, (dayOff) => dayOff.doctor)
+  dayOffs: DoctorDayOff[];
 }

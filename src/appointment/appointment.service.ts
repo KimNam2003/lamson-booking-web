@@ -4,10 +4,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AppointmentSlot } from 'src/appointment-slots/entities/appointment-slot.entity';
 import { Patient } from 'src/patients/entities/patient.entity';
-import { Service } from 'src/services/entities/service.entity';
 import { Appointment } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { AppointmentStatus } from 'src/common/enums/appointment-status.enum';
@@ -21,57 +20,55 @@ export class AppointmentService {
     @InjectRepository(AppointmentSlot)
     private readonly slotRepo: Repository<AppointmentSlot>,
 
-    @InjectRepository(Patient)
-    private readonly patientRepo: Repository<Patient>,
+    private dataSource: DataSource,
 
-    @InjectRepository(Service)
-    private readonly serviceRepo: Repository<Service>,
   ) {}
 
   // 🔹 Create a new appointment
+   // 🔹 Đặt lịch hẹn
   async createAppointment(dto: CreateAppointmentDto) {
     const { slotId, patientId, note } = dto;
 
-    // 🔍 Lấy slot kèm doctor và service
-    const slot = await this.slotRepo.findOne({
-      where: { id: slotId },
-      relations: ['doctor', 'service'],
+    return await this.dataSource.transaction(async (manager) => {
+      // 🔒 Lock slot để tránh race condition
+      const slot = await manager.findOne(AppointmentSlot, {
+        where: { id: slotId },
+        relations: ['schedule.doctor', 'service'],
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!slot) {
+        throw new NotFoundException('Slot not found');
+      }
+
+      if (slot.isBooked) {
+        throw new BadRequestException('Slot already booked');
+      }
+
+      if (!slot.service || isNaN(slot.service.price)) {
+        throw new BadRequestException('Slot does not have a valid service with price');
+      }
+
+      const patient = await manager.findOne(Patient, {
+        where: { id: patientId },
+      });
+
+      if (!patient) {
+        throw new NotFoundException('Patient not found');
+      }
+
+      const appointment = manager.create(Appointment, {
+        slot,
+        patient,
+        note: note || null,
+        status: AppointmentStatus.PENDING,
+        price: slot.service.price,
+      });
+
+      slot.isBooked = true;
+      await manager.save(AppointmentSlot, slot);
+      return await manager.save(Appointment, appointment);
     });
-
-    if (!slot) {
-      throw new NotFoundException('Slot not found');
-    }
-
-    if (slot.isBooked) {
-      throw new BadRequestException('Slot already booked');
-    }
-
-    if (!slot.service) {
-      throw new BadRequestException('Slot does not have a linked service');
-    }
-
-    const patient = await this.patientRepo.findOne({
-      where: { id: patientId },
-    });
-
-    if (!patient) {
-      throw new NotFoundException('Patient not found');
-    }
-
-    const appointment = this.appointmentRepo.create({
-      slot,
-      patient,
-      note: note || null,
-      status: AppointmentStatus.PENDING,
-      price: slot.service.price, // 💰 Lưu giá tại thời điểm đặt
-    });
-
-    // ✅ Đánh dấu slot đã được đặt
-    slot.isBooked = true;
-    await this.slotRepo.save(slot);
-
-    // ✅ Lưu lịch hẹn
-    return await this.appointmentRepo.save(appointment);
   }
 
   // 🔹 Get all appointments (optionally by patient or doctor)
@@ -82,7 +79,7 @@ export class AppointmentService {
 
     return this.appointmentRepo.find({
       where,
-      relations: ['slot', 'patient', 'service', 'slot.doctor'],
+      relations: ['slot', 'patient', 'slot.schedule.service', 'slot.schedule.doctor'],
       order: { createdAt: 'DESC' },
     });
   }

@@ -1,5 +1,6 @@
 import { Appointment } from "src/appointment/entities/appointment.entity";
 import { Doctor } from "src/doctors/entities/doctor.entity";
+import { Schedule } from "src/schedules/entities/schedule.entity";
 import { Service } from "src/services/entities/service.entity";
 import { Column, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 
@@ -8,12 +9,12 @@ export class AppointmentSlot {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Doctor, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'doctor_id' })
-  doctor: Doctor;
+   @ManyToOne(() => Schedule, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'schedule_id' })
+  schedule: Schedule;
 
-  @Column({ name: 'doctor_id' })
-  doctorId: number;
+  @Column({ name: 'schedule_id' })
+  scheduleId: number;
 
   @ManyToOne(() => Service, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'service_id' })

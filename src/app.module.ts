@@ -13,6 +13,9 @@ import { AuthModule } from './auth/auth.module';
 import { ScheduleModule } from './schedules/schedule.module';
 import { AppointmentSlotModule } from './appointment-slots/appointment-slot.module';
 import { AppointmentModule } from './appointment/appointment.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { DoctorDayOffModule } from './doctor-of-days/doctor-day-off.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -24,21 +27,25 @@ import { AppointmentModule } from './appointment/appointment.module';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       autoLoadEntities:true
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'), 
+      serveRoot: '/public',
     }),SpecialtiesModule ,ServiceModule,UsersModule,DoctorModule,PatientModule,AuthModule,
-    ScheduleModule,AppointmentSlotModule,AppointmentModule
+    ScheduleModule,AppointmentSlotModule,AppointmentModule,DoctorDayOffModule
 
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AuthMiddleware) 
-      .exclude(
-        { path: 'auth/log-in', method: RequestMethod.POST },
-        { path: 'users/sign-up', method: RequestMethod.POST },
-      )
-      .forRoutes('*')
-      }
-    }
+ export class AppModule {} //implements NestModule {
+//   configure(consumer: MiddlewareConsumer) {
+//     consumer
+//       .apply(AuthMiddleware) 
+//       .exclude(
+//         { path: 'auth/log-in', method: RequestMethod.POST },
+//         { path: 'users/sign-up', method: RequestMethod.POST },
+//       )
+//       .forRoutes('*')
+//       }
+//     }

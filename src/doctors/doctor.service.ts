@@ -79,7 +79,8 @@ export class DoctorService {
   // 5. Update doctor
   async updateDoctor(id: number, dto: DoctorDto) {
     const doctor = await this.doctorRepo.findOne({ where: { id } });
-    if (!doctor) throw new NotFoundException('Doctor not found');
+    if (!doctor)
+       throw new NotFoundException('Doctor not found');
 
     if (dto.specialtyId) {
       const specialty = await this.specialtyRepo.findOne({

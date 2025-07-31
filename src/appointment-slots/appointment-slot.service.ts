@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {Injectable, NotFoundException, BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository } from 'typeorm';
+
 import { AppointmentSlot } from './entities/appointment-slot.entity';
 import { Schedule } from 'src/schedules/entities/schedule.entity';
-import { Doctor } from 'src/doctors/entities/doctor.entity';
 import { Service } from 'src/services/entities/service.entity';
+import { DoctorDayOff } from 'src/doctor-of-days/entities/doctor-off-day.enttity';
+import { GenerateSlotDto } from './dto/appointment-slot.dto';
 
 @Injectable()
 export class AppointmentSlotService {
@@ -18,29 +21,45 @@ export class AppointmentSlotService {
     @InjectRepository(Service)
     private readonly serviceRepo: Repository<Service>,
 
-    @InjectRepository(Doctor)
-    private readonly doctorRepo: Repository<Doctor>,
+    @InjectRepository(DoctorDayOff)
+    private readonly dayOffRepo: Repository<DoctorDayOff>,
   ) {}
 
-  // 🔄 Auto-generate slots for doctor on specific date with service
- async generateSlots(doctorId: number, serviceId: number, date: string) {
-  const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
-  if (!doctor) throw new NotFoundException('Doctor not found');
+  // 🔄 Tạo slot cho 1 schedule trong 1 ngày (kèm kiểm tra ngày nghỉ)
+  async generateSlots(dto: GenerateSlotDto) {
+    const { scheduleId, serviceId, date } = dto;
 
-  const service = await this.serviceRepo.findOne({ where: { id: serviceId } });
-  if (!service) throw new NotFoundException('Service not found');
+    const schedule = await this.scheduleRepo.findOne({
+      where: { id: scheduleId },
+      relations: ['doctor'],
+    });
 
-  const weekday = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }); // ✅ Chỉ lấy tên thứ
+    if (!schedule) {
+      throw new NotFoundException('Schedule not found');
+    }
 
-  const schedules = await this.scheduleRepo.find({
-    where: { doctor: { id: doctorId }, weekday },
-  });
+    const doctor = schedule.doctor;
 
-  if (!schedules.length) throw new NotFoundException('No schedule for this weekday');
+    // ✅ Kiểm tra bác sĩ có nghỉ ngày này không
+    const doctorDayOff = await this.dayOffRepo.findOne({
+      where: {
+        doctor: { id: doctor.id },
+        date: date,
+      },
+    });
 
-  const createdSlots: AppointmentSlot[] = [];
+    if (doctorDayOff) {
+      throw new BadRequestException('Doctor is on leave for this date');
+    }
 
-  for (const schedule of schedules) {
+    const service = await this.serviceRepo.findOne({
+      where: { id: serviceId },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Service not found');
+    }
+
     const [startHour, startMin] = schedule.startTime.split(':').map(Number);
     const [endHour, endMin] = schedule.endTime.split(':').map(Number);
 
@@ -50,53 +69,65 @@ export class AppointmentSlotService {
     const end = new Date(date);
     end.setHours(endHour, endMin, 0, 0);
 
+    const createdSlots: AppointmentSlot[] = [];
     let slotStart = new Date(start);
 
     while (slotStart < end) {
-      const slotEnd = new Date(slotStart.getTime() + service.duration_minutes * 60 * 1000);
+      const slotEnd = new Date(
+        slotStart.getTime() + service.duration_minutes * 60 * 1000,
+      );
 
       if (slotEnd > end) break;
 
       const exists = await this.slotRepo.findOne({
         where: {
-          doctor: { id: doctorId },
-          service: { id: serviceId }, // ✅ nếu muốn kiểm tra theo service
+          schedule: { id: scheduleId },
+          service: { id: serviceId },
           startTime: slotStart,
           endTime: slotEnd,
         },
       });
 
-      if (!exists) {
-        const slot = this.slotRepo.create({
-          doctor,
-          service, // ✅ Gán service vào slot
-          startTime: new Date(slotStart),
-          endTime: new Date(slotEnd),
-          isBooked: false,
-        });
-        await this.slotRepo.save(slot);
-        createdSlots.push(slot);
+      if (exists) {
+        throw new BadRequestException(
+          `Slot from ${slotStart.toISOString()} to ${slotEnd.toISOString()} already exists`,
+        );
       }
 
-      slotStart = new Date(slotStart.getTime() + service.duration_minutes * 60 * 1000);
+      const slot = this.slotRepo.create({
+        schedule,
+        service,
+        startTime: new Date(slotStart),
+        endTime: new Date(slotEnd),
+        isBooked: false,
+      });
+
+      await this.slotRepo.save(slot);
+      createdSlots.push(slot);
+
+      slotStart = new Date(
+        slotStart.getTime() + service.duration_minutes * 60 * 1000,
+      );
     }
+
+    return createdSlots;
   }
 
-  return createdSlots;
-}
-
-
-  // 📄 Get all slots (optionally by doctor)
+  // 📄 Lấy tất cả slot (lọc theo doctor nếu có)
   async findAll(doctorId?: number) {
-    const where = doctorId ? { doctor: { id: doctorId } } : {};
-    return this.slotRepo.find({
-      where,
-      relations: ['doctor'],
+    const slots = await this.slotRepo.find({
+      relations: ['schedule', 'schedule.doctor', 'service'],
       order: { startTime: 'ASC' },
     });
+
+    if (doctorId) {
+      return slots.filter((slot) => slot.schedule?.doctor?.id === doctorId);
+    }
+
+    return slots;
   }
 
-  // ❌ Delete a slot
+  // ❌ Xóa slot theo ID
   async delete(id: number) {
     const slot = await this.slotRepo.findOne({ where: { id } });
     if (!slot) throw new NotFoundException('Slot not found');
