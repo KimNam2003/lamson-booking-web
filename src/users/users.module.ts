@@ -8,9 +8,12 @@ import { Patient } from 'src/patients/entities/patient.entity';
 import { Service } from 'src/services/entities/service.entity';
 import { UserController } from './users.controller';
 import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
+import { UploadModule } from 'src/UploadAvatar/UploadAvatar.module';
+import { DoctorModule } from 'src/doctors/doctor.module';
+import { PatientModule } from 'src/patients/patient.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User,Doctor,Specialty,DoctorServices,Patient,Service])],
+  imports: [TypeOrmModule.forFeature([User,Doctor,Specialty,DoctorServices,Patient,Service]),UploadModule, DoctorModule,PatientModule],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],

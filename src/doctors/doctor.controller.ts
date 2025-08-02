@@ -1,16 +1,8 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  Patch,
-  Body,
-  Query,
-  Post,
-  Delete,
+import { Controller, Get, Param, ParseIntPipe, Patch,Body, Query, Post, Delete, UploadedFile, ParseFilePipeBuilder, UseInterceptors,
 } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { DoctorDto } from './dto/doctor.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('doctors')
 export class DoctorController {
@@ -45,11 +37,19 @@ export class DoctorController {
 
   // 5. Update doctor
   @Patch(':id')
-  updateDoctor(
+  @UseInterceptors(FileInterceptor('avatar')) // 'avatar' là field name từ client
+  async updateDoctor(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: DoctorDto,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({ fileType: /^image\/(jpg|jpeg|png)$/ })
+        .addMaxSizeValidator({ maxSize: 10_000_000 }) // 10MB
+        .build({ fileIsRequired: false }) 
+    )
+    file?: Express.Multer.File,
   ) {
-    return this.doctorService.updateDoctor(id, dto);
+    return this.doctorService.updateDoctor(id, dto, file);
   }
 
   // 6. Assign services to doctor

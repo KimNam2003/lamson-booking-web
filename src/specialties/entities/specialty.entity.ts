@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { Service } from 'src/services/entities/service.entity'; // đường dẫn tùy theo cấu trúc project của bạn
 
 @Entity('specialties')
 export class Specialty {
@@ -13,4 +14,7 @@ export class Specialty {
 
   @Column({ name: 'image_url', nullable: true })
   imageUrl: string;
+
+  @OneToMany(() => Service, (service) => service.specialty)
+  services: Service[];
 }

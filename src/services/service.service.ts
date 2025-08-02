@@ -117,4 +117,6 @@ export class ServiceService {
     await this.serviceRepo.delete(id);
     return { message: `Successfully deleted service with ID ${id}` };
   }
+
+  
 }

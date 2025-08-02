@@ -10,13 +10,16 @@ import { Specialty } from 'src/specialties/entities/specialty.entity';
 import { Service } from 'src/services/entities/service.entity';
 import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 import { Schedule } from 'src/schedules/entities/schedule.entity';
+import { UploadModule } from 'src/UploadAvatar/UploadAvatar.module';
 
 @Module({
   controllers: [DoctorController],
   providers: [DoctorService],
   imports: [
     TypeOrmModule.forFeature([User,Doctor, Specialty, Service, DoctorServices,Schedule]),
+    UploadModule
   ],
+  exports: [DoctorService]
 })
 export class DoctorModule {}
 

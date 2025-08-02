@@ -30,7 +30,6 @@ import { DoctorDayOffModule } from './doctor-of-days/doctor-day-off.module';
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'), 
-      serveRoot: '/public',
     }),SpecialtiesModule ,ServiceModule,UsersModule,DoctorModule,PatientModule,AuthModule,
     ScheduleModule,AppointmentSlotModule,AppointmentModule,DoctorDayOffModule
 

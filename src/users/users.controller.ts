@@ -1,30 +1,29 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseIntPipe,
-  Patch,
-  Post,
-  Query,
+import {Body, Controller, Delete, Get, Param, ParseFilePipeBuilder, ParseIntPipe, Patch, Post, Query, UploadedFile, UseInterceptors, 
 } from '@nestjs/common';
+import { UserService } from './users.service';
+import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UserDto } from './dto/user.dto';
 import { DoctorDto } from 'src/doctors/dto/doctor.dto';
 import { PatientDto } from 'src/patients/dto/patient.dto';
-import { UserService } from './users.service';
-import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
+import { CreateUserWithProfileDto } from './dto/create-user-with-profile.dto';
+import { User } from './entities/user.entity';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post('sign-up')
+  @UseInterceptors(FileInterceptor('avatar')) // 'file' là key trong FormData
   async createUser(
-    @Body() body: { user: UserDto; profile: DoctorDto | PatientDto },
-  ) {
-    const { user, profile } = body;
-    return this.userService.createUser(user, profile);
+    @Body() dto: CreateUserWithProfileDto,
+    @UploadedFile() avatar?: Express.Multer.File,
+  ): Promise<User> {
+    if (typeof dto.profile === 'string') {
+    dto.profile = JSON.parse(dto.profile);
+  }
+
+    return this.userService.createUser(dto, avatar);
   }
 
   // ✅ GET /users/:id - Lấy thông tin user theo ID

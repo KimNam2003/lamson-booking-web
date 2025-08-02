@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Patient } from './entities/patient.entity';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { PatientDto } from './dto/patient.dto';
 
@@ -17,6 +17,21 @@ export class PatientService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
   ) {}
+
+  async createPatientProfile(user: User, dto: PatientDto, manager: EntityManager): Promise<Patient> {
+  const patient = manager.create(Patient, {
+    user,
+    fullName: dto.fullName,
+    phone: dto.phone,
+    dateOfBirth: dto.dateOfBirth,
+    gender: dto.gender,
+    address: dto.address,
+    // Bổ sung các field khác nếu có
+  });
+
+  return await manager.save(Patient, patient);
+}
+
 
   // 1. Get patient by id
   async getPatientById(id: number) {

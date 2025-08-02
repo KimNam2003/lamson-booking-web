@@ -21,6 +21,10 @@ import { PatientDto } from 'src/patients/dto/patient.dto';
 import { DoctorDto } from 'src/doctors/dto/doctor.dto';
 import { Service } from 'src/services/entities/service.entity';
 import { UpdateUserDto } from 'src/auth/dto/update-user.dto';
+import { CreateUserWithProfileDto } from './dto/create-user-with-profile.dto';
+import { DoctorService } from 'src/doctors/doctor.service';
+import { UploadAvatarService } from 'src/UploadAvatar/UploadAvatar.service';
+import { PatientService } from 'src/patients/patient.service';
 
 @Injectable()
 export class UserService {
@@ -40,78 +44,72 @@ export class UserService {
     @InjectRepository(DoctorServices)
     private readonly doctorServiceRepository: Repository<DoctorServices>,
 
-    @InjectRepository(Service)
-    private readonly serviceRepository: Repository<Service>,
-
     private readonly dataSource: DataSource, 
+
+    private readonly doctorService : DoctorService,
+
+    private readonly uploadAvatarService: UploadAvatarService,
+
+    private readonly patientService : PatientService,
+
+
 
   ) {}
 
-  async createUser(userDto: UserDto, profileData: DoctorDto | PatientDto) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+  async createUser(
+  dto: CreateUserWithProfileDto,
+  avatar?: Express.Multer.File,
+): Promise<User> {
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-    try {
-      const { email, password, role } = userDto;
-      const existingUser = await queryRunner.manager.findOne(User, {
-        where: { email },
-      });
-      if (existingUser) {
-        throw new ConflictException('Email already exists');
-      }
+  try {
+    const { email, password, role, profile } = dto;
 
-      const salt = await bcrypt.genSalt();
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      const newUser = this.userRepository.create({
-        email,
-        passwordHash: hashedPassword,
-        role,
-      });
-
-      const savedUser = await queryRunner.manager.save(User, newUser);
-
-      if (role === UserRole.Doctor) {
-        const doctorDto = profileData as DoctorDto;
-        const { specialtyId, ...restDoctorDto } = doctorDto;
-
-        const specialty = await queryRunner.manager.findOne(Specialty, {
-          where: { id: specialtyId },
-        });
-        if (!specialty) {
-          throw new NotFoundException('Specialty not found');
-        }
-
-        const doctor = this.doctorRepository.create({
-          ...restDoctorDto,
-          specialty,
-          user: savedUser,
-        });
-
-        await queryRunner.manager.save(Doctor, doctor);
-      }
-
-      if (role === UserRole.Patient) {
-        const patientDto = profileData as PatientDto;
-
-        const patient = this.patientRepository.create({
-          ...patientDto,
-          user: savedUser,
-        });
-
-        await queryRunner.manager.save(Patient, patient);
-      }
-
-      await queryRunner.commitTransaction();
-      return instanceToPlain(savedUser);
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+    const existingUser = await queryRunner.manager.findOne(User, {
+      where: { email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = this.userRepository.create({
+      email,
+      passwordHash: hashedPassword,
+      role,
+    });
+
+    const savedUser = await queryRunner.manager.save(User, newUser);
+
+    let avatarUrl: string | undefined;
+    if (avatar) {
+      avatarUrl = await this.uploadAvatarService.saveDoctorAvatar(avatar, savedUser.id);
+    }
+
+    if (role === UserRole.Doctor) {
+      const doctorDto = profile as DoctorDto;
+      if (avatarUrl) {
+        doctorDto.avatarUrl = avatarUrl;
+      }
+      await this.doctorService.createDoctorProfile(savedUser, doctorDto,queryRunner.manager);
+    }
+
+    if (role === UserRole.Patient) {
+      await this.patientService.createPatientProfile(savedUser, profile as PatientDto,queryRunner.manager);
+    }
+
+    await queryRunner.commitTransaction();
+    return savedUser;
+  } catch (err) {
+    await queryRunner.rollbackTransaction();
+    throw err;
+  } finally {
+    await queryRunner.release();
   }
+}
   
  // Cập nhật email hoặc mật khẩu
   async updateUser(id: number, dto: UpdateUserDto) {

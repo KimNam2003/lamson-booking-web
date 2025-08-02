@@ -44,7 +44,7 @@ export class Doctor {
   specialty: Specialty;
 
   @Column({ name: 'avatar_url', type: 'varchar', length: 255, nullable: true })
-  avatarUrl: string;
+  avatarUrl: string | null;
 
   @OneToMany(() => DoctorServices, (ds) => ds.doctor)
   doctorServices: DoctorServices[];

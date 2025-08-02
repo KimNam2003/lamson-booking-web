@@ -1,14 +1,17 @@
-import {
-  Injectable, NotFoundException,
+import {Injectable, NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Doctor } from './entities/doctor.entity';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
 import { Service } from 'src/services/entities/service.entity';
 import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 import { DoctorDto } from './dto/doctor.dto';
 import { User } from 'src/users/entities/user.entity';
+import path from 'path';
+import fs from 'fs';
+import { UploadAvatarService } from 'src/UploadAvatar/UploadAvatar.service';
+
 @Injectable()
 export class DoctorService {
   constructor(
@@ -27,7 +30,33 @@ export class DoctorService {
     @InjectRepository(User)
     private readonly userServiceRepo: Repository<User>,
 
+    private readonly uploadAvatarService: UploadAvatarService,
+
+
   ) {}
+
+  async createDoctorProfile(user: User, dto: DoctorDto, manager: EntityManager): Promise<Doctor> {
+    const specialty = await manager.findOne(Specialty, {
+      where: { id: dto.specialtyId },
+    });
+
+    if (!specialty) {
+      throw new NotFoundException('Specialty not found');
+    }
+
+    const doctor = manager.create(Doctor, {
+      user,
+      fullName: dto.fullName,
+      phone: dto.phone,
+      description: dto.description,
+      experienceYears: dto.experienceYears,
+      avatarUrl: dto.avatarUrl,
+      specialty,
+    });
+
+    return await manager.save(Doctor, doctor);
+  }
+
 
   // 1. Get by doctorId
   async getDoctorById(id: number) {
@@ -77,11 +106,12 @@ export class DoctorService {
   }
 
   // 5. Update doctor
-  async updateDoctor(id: number, dto: DoctorDto) {
-    const doctor = await this.doctorRepo.findOne({ where: { id } });
-    if (!doctor)
-       throw new NotFoundException('Doctor not found');
+   async updateDoctor(id: number, dto: DoctorDto, file?: Express.Multer.File,) {
 
+    const doctor = await this.doctorRepo.findOne({ where: { id } });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    // Cập nhật specialty nếu có
     if (dto.specialtyId) {
       const specialty = await this.specialtyRepo.findOne({
         where: { id: dto.specialtyId },
@@ -90,7 +120,17 @@ export class DoctorService {
       doctor.specialty = specialty;
     }
 
+    // Cập nhật ảnh nếu có
+    if (file) {
+      const avatarUrl = await this.uploadAvatarService.saveDoctorAvatar(
+        file,
+        id,
+      );
+      doctor.avatarUrl = avatarUrl;
+    }
+
     Object.assign(doctor, dto);
+
     return this.doctorRepo.save(doctor);
   }
 
@@ -139,37 +179,52 @@ export class DoctorService {
 
   return { message: 'Doctor and related user deleted successfully' };
 }
+  
+  //lấy doctor bầng serviceId 
+  async getDoctorsByService(serviceId: number) {
+    const links = await this.doctorServiceRepo.find({
+      where: { service: { id: serviceId } },
+      relations: ['doctor', 'doctor.specialty'],
+    });
 
-async getDoctorsByService(serviceId: number) {
-  const links = await this.doctorServiceRepo.find({
-    where: { service: { id: serviceId } },
-    relations: ['doctor', 'doctor.specialty'],
-  });
+    const doctors = links.map((link) => link.doctor);
 
-  const doctors = links.map((link) => link.doctor);
+    return doctors;
+  }
 
-  return doctors;
-}
-  async searchDoctors(keyword: string, page = 1, limit = 10) {
-  const query = this.doctorRepo
-    .createQueryBuilder('doctor')
-    .leftJoinAndSelect('doctor.specialty', 'specialty')
-    .where('doctor.fullName LIKE :kw OR doctor.description LIKE :kw', {
-      kw: `%${keyword}%`,
-    })
-    .orderBy('doctor.id', 'DESC')
-    .skip((page - 1) * limit)
-    .take(limit);
+  //searrch doctor
+    async searchDoctors(keyword: string, page = 1, limit = 10) {
+    const query = this.doctorRepo
+      .createQueryBuilder('doctor')
+      .leftJoinAndSelect('doctor.specialty', 'specialty')
+      .where('doctor.fullName LIKE :kw OR doctor.description LIKE :kw', {
+        kw: `%${keyword}%`,
+      })
+      .orderBy('doctor.id', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
 
-  const [doctors, total] = await query.getManyAndCount();
+    const [doctors, total] = await query.getManyAndCount();
 
-  return {
-    data: doctors,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
+    return {
+      data: doctors,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+  async saveAvatarFile(file: Express.Multer.File, doctorId: number): Promise<string> {
+  const folderPath = path.join(process.cwd(), 'public', 'doctor', 'avatar', doctorId.toString());
+
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
+
+  const filePath = path.join(folderPath, file.originalname);
+  fs.writeFileSync(filePath, file.buffer);
+
+  return `/doctor/avatar/${doctorId}/${file.originalname}`;
 }
 
 }
