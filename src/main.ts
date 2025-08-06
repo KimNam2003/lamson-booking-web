@@ -18,6 +18,12 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+  app.enableCors({
+    origin: ['http://localhost:5173'], 
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],          
+    allowedHeaders: ['Content-Type', 'Authorization'],              // Các header cho phép gửi từ client
+    credentials: true,                                              // Cho phép gửi cookie, Authorization header
+  });
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

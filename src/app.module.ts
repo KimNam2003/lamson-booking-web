@@ -16,6 +16,7 @@ import { AppointmentModule } from './appointment/appointment.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { DoctorDayOffModule } from './doctor-of-days/doctor-day-off.module';
+import { DoctorServicesModule } from './doctor-services/doctor-service.module';
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true }),
@@ -31,13 +32,13 @@ import { DoctorDayOffModule } from './doctor-of-days/doctor-day-off.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'), 
     }),SpecialtiesModule ,ServiceModule,UsersModule,DoctorModule,PatientModule,AuthModule,
-    ScheduleModule,AppointmentSlotModule,AppointmentModule,DoctorDayOffModule
+    ScheduleModule,AppointmentSlotModule,AppointmentModule,DoctorDayOffModule,DoctorServicesModule
 
   ],
   controllers: [AppController],
   providers: [AppService],
 })
- export class AppModule {} //implements NestModule {
+export class AppModule{} // implements NestModule {
 //   configure(consumer: MiddlewareConsumer) {
 //     consumer
 //       .apply(AuthMiddleware) 

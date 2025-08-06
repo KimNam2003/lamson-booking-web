@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, ParseIntPipe,} from '@nestjs/common';
 import { ServiceService } from './service.service';
 import { ServiceDto } from './dto/service.dto';
 import { Service } from './entities/service.entity';
@@ -38,7 +29,7 @@ export class ServiceController {
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() serviceDto: ServiceDto
+    @Body() serviceDto: ServiceDto,
   ): Promise<Service> {
     return this.serviceService.update(id, serviceDto);
   }
@@ -48,4 +39,13 @@ export class ServiceController {
   async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
     return this.serviceService.remove(id);
   }
+
+  // GET /services/specialty/:specialtyId
+  @Get('specialty/:specialtyId')
+  async getBySpecialty(
+    @Param('specialtyId', ParseIntPipe) specialtyId: number,
+  ): Promise<Service[]> {
+    return this.serviceService.getServicesBySpecialtyId(specialtyId);
+  }
 }
+

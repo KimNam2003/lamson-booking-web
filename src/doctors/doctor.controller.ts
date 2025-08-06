@@ -24,7 +24,7 @@ export class DoctorController {
   }
 
   // 3. Get doctor by user ID
-  @Get('user/:userId')
+  @Get(':userId')
   getDoctorByUserId(@Param('userId', ParseIntPipe) userId: number) {
     return this.doctorService.getDoctorByUserId(userId);
   }
@@ -52,25 +52,10 @@ export class DoctorController {
     return this.doctorService.updateDoctor(id, dto, file);
   }
 
-  // 6. Assign services to doctor
-  @Post(':id/services')
-  assignServices(
-    @Param('id', ParseIntPipe) doctorId: number,
-    @Body() body: { serviceIds: number[] },
-  ) {
-    return this.doctorService.assignServices(doctorId, body.serviceIds);
-  }
-
   // 7. Delete doctor by doctor ID
   @Delete(':id')
   deleteDoctor(@Param('id', ParseIntPipe) id: number) {
     return this.doctorService.deleteDoctor(id);
-  }
-
-  // 8. Get doctors by service ID
-  @Get('service/:serviceId')
-  getDoctorsByService(@Param('serviceId', ParseIntPipe) serviceId: number) {
-    return this.doctorService.getDoctorsByService(serviceId);
   }
 
   // 9. Search doctors by keyword (with pagination)

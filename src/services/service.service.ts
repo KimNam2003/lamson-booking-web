@@ -1,14 +1,11 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
+import {Injectable, NotFoundException, ConflictException, BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Service } from './entities/service.entity';
 import { ServiceDto } from './dto/service.dto';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
+import { Doctor } from 'src/doctors/entities/doctor.entity';
 
 @Injectable()
 export class ServiceService {
@@ -18,9 +15,12 @@ export class ServiceService {
 
     @InjectRepository(Specialty)
     private specialtyRepo: Repository<Specialty>,
+
+    @InjectRepository(Doctor)
+    private readonly doctorRepo: Repository<Doctor>,
   ) {}
 
-  //  Create a new service
+  // 1. Create a new service
   async create(serviceDto: ServiceDto): Promise<Service> {
     const existed = await this.serviceRepo.findOneBy({ name: serviceDto.name });
     if (existed) {
@@ -48,12 +48,12 @@ export class ServiceService {
     }
   }
 
-  // Lấy all services
+  // 2.Lấy all services
   async findAll(): Promise<Service[]> {
     return this.serviceRepo.find({ relations: ['specialty'] });
   }
 
-  // lấy 1 service bằng ID
+  // 3.lấy 1 service bằng ID
   async findOne(id: number): Promise<Service> {
     const service = await this.serviceRepo.findOne({
       where: { id },
@@ -65,7 +65,7 @@ export class ServiceService {
     return service;
   }
 
-  //update services
+  //4. update services
   async update(id: number, serviceDto: ServiceDto): Promise<Service> {
     const service = await this.serviceRepo.findOne({
       where: { id },
@@ -107,7 +107,7 @@ export class ServiceService {
     }
   }
 
-  // xóa service
+  //5. xóa service
   async remove(id: number): Promise<{ message: string }> {
     const service = await this.serviceRepo.findOneBy({ id });
     if (!service) {
@@ -118,5 +118,11 @@ export class ServiceService {
     return { message: `Successfully deleted service with ID ${id}` };
   }
 
-  
+  // 6. lấy danh sách dịch vụ theo chuyen khoa
+  async getServicesBySpecialtyId(specialtyId: number): Promise<Service[]> {
+  return this.serviceRepo.find({
+    where: { specialty: { id: specialtyId } },
+    relations: ['specialty'],
+  });
+}
 }

@@ -2,15 +2,12 @@ import {Injectable, NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Doctor } from './entities/doctor.entity';
-import { EntityManager, In, Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
-import { Service } from 'src/services/entities/service.entity';
-import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 import { DoctorDto } from './dto/doctor.dto';
 import { User } from 'src/users/entities/user.entity';
-import path from 'path';
-import fs from 'fs';
 import { UploadAvatarService } from 'src/UploadAvatar/UploadAvatar.service';
+import { DoctorServices } from 'src/doctor-services/entities/doctor-service.entity';
 
 @Injectable()
 export class DoctorService {
@@ -20,12 +17,6 @@ export class DoctorService {
 
     @InjectRepository(Specialty)
     private readonly specialtyRepo: Repository<Specialty>,
-
-    @InjectRepository(Service)
-    private readonly serviceRepo: Repository<Service>,
-
-    @InjectRepository(DoctorServices)
-    private readonly doctorServiceRepo: Repository<DoctorServices>,
 
     @InjectRepository(User)
     private readonly userServiceRepo: Repository<User>,
@@ -134,38 +125,9 @@ export class DoctorService {
     return this.doctorRepo.save(doctor);
   }
 
-  // 6. Assign services to doctor
-  async assignServices(doctorId: number, serviceIds: number[]) {
-    const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
-    if (!doctor) {
-      throw new NotFoundException('Doctor not found');
-    }
 
-    const services = await this.serviceRepo.find({
-      where: { id: In(serviceIds) },
-    });
 
-    if (services.length !== serviceIds.length) {
-      throw new NotFoundException('Some service IDs are invalid');
-    }
-    await this.doctorServiceRepo.delete({ doctor: { id: doctorId } });
-
-    const newAssignments = serviceIds.map((serviceId) =>
-      this.doctorServiceRepo.create({
-        doctor: { id: doctorId },
-        service: { id: serviceId },
-      })
-    );
-
-    await this.doctorServiceRepo.save(newAssignments);
-
-    return {
-      message: 'Services re-assigned successfully',
-      assignedServiceIds: serviceIds,
-    };
-  }
-
-  //Delete doctor by id 
+  // 6. Delete doctor by id 
   async deleteDoctor(id: number) {
   const doctor = await this.doctorRepo.findOne({
     where: { id },
@@ -180,20 +142,9 @@ export class DoctorService {
   return { message: 'Doctor and related user deleted successfully' };
 }
   
-  //lấy doctor bầng serviceId 
-  async getDoctorsByService(serviceId: number) {
-    const links = await this.doctorServiceRepo.find({
-      where: { service: { id: serviceId } },
-      relations: ['doctor', 'doctor.specialty'],
-    });
 
-    const doctors = links.map((link) => link.doctor);
-
-    return doctors;
-  }
-
-  //searrch doctor
-    async searchDoctors(keyword: string, page = 1, limit = 10) {
+  //7. searrch doctor
+  async searchDoctors(keyword: string, page = 1, limit = 10) {
     const query = this.doctorRepo
       .createQueryBuilder('doctor')
       .leftJoinAndSelect('doctor.specialty', 'specialty')
@@ -214,17 +165,6 @@ export class DoctorService {
       totalPages: Math.ceil(total / limit),
     };
   }
-  async saveAvatarFile(file: Express.Multer.File, doctorId: number): Promise<string> {
-  const folderPath = path.join(process.cwd(), 'public', 'doctor', 'avatar', doctorId.toString());
 
-  if (!fs.existsSync(folderPath)) {
-    fs.mkdirSync(folderPath, { recursive: true });
-  }
-
-  const filePath = path.join(folderPath, file.originalname);
-  fs.writeFileSync(filePath, file.buffer);
-
-  return `/doctor/avatar/${doctorId}/${file.originalname}`;
-}
 
 }

@@ -27,4 +27,22 @@ export class ServiceDto {
   @IsPositive()
   @IsNotEmpty()
   specialty_id?: number;
+
+  
+  @IsOptional()
+  @IsString()
+  target_patient?: string;
+
+  @IsOptional()
+  @IsString()
+  benefit?: string;
+
+  @IsOptional()
+  @IsString()
+  preparation?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
 }

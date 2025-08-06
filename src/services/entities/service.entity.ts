@@ -23,6 +23,18 @@ export class Service {
   @JoinColumn({ name: 'specialty_id' })
   specialty: Specialty;
 
+    @Column({ type: 'text', nullable: true })
+  target_patient?: string;
+
+  @Column({ type: 'text', nullable: true })
+  benefit?: string;
+
+  @Column({ type: 'text', nullable: true })
+  preparation?: string;
+
+  @Column({ type: 'text', nullable: true })
+  notes?: string;
+
   // @OneToMany(() => AppointmentSlot, (slot) => slot.service)
   // appointmentSlots: AppointmentSlot[];
 }

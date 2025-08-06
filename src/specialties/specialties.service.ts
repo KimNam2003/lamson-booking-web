@@ -9,7 +9,6 @@ import { Repository } from 'typeorm';
 import { Specialty } from './entities/specialty.entity';
 import { SpecialtyDto } from './dto/specialty.dto';
 import { UploadAvatarService } from 'src/UploadAvatar/UploadAvatar.service';
-import { Service } from 'src/services/entities/service.entity';
 
 @Injectable()
 export class SpecialtiesService {
@@ -99,19 +98,5 @@ export class SpecialtiesService {
     await this.specialtyRepo.delete(id);
     return { message: `Delete successful with ID ${id}` };
   }
-
-  async getServicesBySpecialtyId(specialtyId: number): Promise<Service[]> {
-    const specialty = await this.specialtyRepo.findOne({
-      where: { id: specialtyId },
-      relations: ['services'], // tên phải đúng với tên trong entity
-    });
-
-    if (!specialty) {
-      throw new NotFoundException(`Specialty with ID ${specialtyId} not found`);
-    }
-
-    return specialty.services;
-  }
-
 
 }

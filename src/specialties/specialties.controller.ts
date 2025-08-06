@@ -4,7 +4,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { SpecialtiesService } from './specialties.service';
 import { SpecialtyDto } from './dto/specialty.dto';
 import { Specialty } from './entities/specialty.entity';
-import { Service } from 'src/services/entities/service.entity';
 
 @Controller('specialties')
 export class SpecialtiesController {
@@ -47,11 +46,5 @@ export class SpecialtiesController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
     return this.specialtiesService.remove(id);
-  }
-
-  // Lấy danh sách dịch vụ theo chuyên khoa
-  @Get(':id/services')
-  getServices(@Param('id', ParseIntPipe) id: number): Promise<Service[]> {
-    return this.specialtiesService.getServicesBySpecialtyId(id);
   }
 }
