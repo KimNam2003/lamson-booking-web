@@ -18,6 +18,7 @@ export class DoctorDayOffService {
   const doctor = await this.doctorRepo.findOne({ where: { id: dto.doctorId } });
   if (!doctor) throw new NotFoundException('Doctor not found');
 
+  
   const existingDayOff = await this.dayOffRepo.findOne({
     where: {
       doctor: { id: dto.doctorId },

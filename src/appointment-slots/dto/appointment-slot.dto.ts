@@ -1,4 +1,5 @@
-import { IsInt, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsDateString, IsDate } from 'class-validator';
 
 export class GenerateSlotDto {
   @IsInt()
@@ -8,5 +9,5 @@ export class GenerateSlotDto {
   serviceId: number;
 
   @IsDateString()
-  date: string; // YYYY-MM-DD (ví dụ: '2025-08-01')
+  date: string;
 }

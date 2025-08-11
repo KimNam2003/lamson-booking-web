@@ -1,58 +1,63 @@
-import { Controller, Get, Param, ParseIntPipe, Patch,Body, Query, Post, Delete, UploadedFile, ParseFilePipeBuilder, UseInterceptors,
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Body,
+  Query,
+  Post,
+  Delete,
+  UploadedFile,
+  UseInterceptors,
+  ParseFilePipeBuilder,
 } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { DoctorDto } from './dto/doctor.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ListDoctorQueryDto } from './dto/doctor-query-dto';
+import { UpdateDoctorDto } from './dto/update-doctor.dto';
 
 @Controller('doctors')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
-  // 1. Get all doctors (with pagination)
+  // ✅ 1. List + filter doctors
   @Get()
-  getAllDoctors(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    return this.doctorService.getAllDoctors(Number(page), Number(limit));
+  getDoctors(@Query() query: ListDoctorQueryDto) {
+    return this.doctorService.getDoctors(query);
   }
 
-  // 2. Get doctor by doctor ID
+  // ✅ 2. Get by doctor ID
   @Get(':id')
   getDoctorById(@Param('id', ParseIntPipe) id: number) {
     return this.doctorService.getDoctorById(id);
   }
 
-  // 3. Get doctor by user ID
+  // ✅ 3. Get by user ID
   @Get('user/:userId')
   getDoctorByUserId(@Param('userId', ParseIntPipe) userId: number) {
     return this.doctorService.getDoctorByUserId(userId);
   }
 
-  // 4. Get doctors by specialty
-  @Get('specialty/:specialtyId')
-  getDoctorsBySpecialty(@Param('specialtyId', ParseIntPipe) specialtyId: number) {
-    return this.doctorService.getDoctorsBySpecialty(specialtyId);
-  }
-
-  // 5. Update doctor
+  // ✅ 4. Update doctor info
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('avatar')) // 'avatar' là field name từ client
-  async updateDoctor(
+  @UseInterceptors(FileInterceptor('avatar'))
+  updateDoctor(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: DoctorDto,
+    @Body() dto: UpdateDoctorDto,
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({ fileType: /^image\/(jpg|jpeg|png)$/ })
         .addMaxSizeValidator({ maxSize: 10_000_000 }) // 10MB
-        .build({ fileIsRequired: false }) 
+        .build({ fileIsRequired: false }),
     )
     file?: Express.Multer.File,
   ) {
     return this.doctorService.updateDoctor(id, dto, file);
   }
 
-  // 6. Assign services to doctor
+  // ✅ 5. Assign services
   @Post(':id/services')
   assignServices(
     @Param('id', ParseIntPipe) doctorId: number,
@@ -61,25 +66,9 @@ export class DoctorController {
     return this.doctorService.assignServices(doctorId, body.serviceIds);
   }
 
-  // 7. Delete doctor by doctor ID
+  // ✅ 6. Delete doctor
   @Delete(':id')
   deleteDoctor(@Param('id', ParseIntPipe) id: number) {
     return this.doctorService.deleteDoctor(id);
-  }
-
-  // 8. Get doctors by service ID
-  @Get('service/:serviceId')
-  getDoctorsByService(@Param('serviceId', ParseIntPipe) serviceId: number) {
-    return this.doctorService.getDoctorsByService(serviceId);
-  }
-
-  // 9. Search doctors by keyword (with pagination)
-  @Get('search/keyword')
-  searchDoctors(
-    @Query('keyword') keyword: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    return this.doctorService.searchDoctors(keyword, Number(page), Number(limit));
   }
 }

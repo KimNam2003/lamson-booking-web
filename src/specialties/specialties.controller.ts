@@ -1,57 +1,55 @@
-import {Controller, Get, Post, Put, Delete, Param, Body, UploadedFile, UseInterceptors, ParseIntPipe,
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SpecialtiesService } from './specialties.service';
 import { SpecialtyDto } from './dto/specialty.dto';
-import { Specialty } from './entities/specialty.entity';
-import { Service } from 'src/services/entities/service.entity';
+import { ListSpecialtyQueryDto } from './dto/specialty-query-dto';
 
 @Controller('specialties')
 export class SpecialtiesController {
   constructor(private readonly specialtiesService: SpecialtiesService) {}
 
-  // Tạo mới chuyên khoa (hỗ trợ upload ảnh)
+  // ✅ [POST] /specialties - Tạo chuyên khoa mới
   @Post()
   @UseInterceptors(FileInterceptor('image'))
-  create(
+  async create(
     @Body() dto: SpecialtyDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<Specialty> {
+  ) {
     return this.specialtiesService.create(dto, image);
   }
 
-  // Lấy danh sách tất cả chuyên khoa
+  // ✅ [GET] /specialties - Lấy danh sách chuyên khoa có lọc và phân trang
   @Get()
-  findAll(): Promise<Specialty[]> {
-    return this.specialtiesService.findAll();
+  async findSpecialties(@Query() query: ListSpecialtyQueryDto) {
+    return this.specialtiesService.findSpecialties(query);
   }
 
-  // Lấy chi tiết 1 chuyên khoa
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<Specialty> {
-    return this.specialtiesService.findOne(id);
-  }
-
-  // Cập nhật chuyên khoa (hỗ trợ upload ảnh)
+  // ✅ [PUT] /specialties/:id - Cập nhật chuyên khoa
   @Put(':id')
   @UseInterceptors(FileInterceptor('image'))
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SpecialtyDto,
     @UploadedFile() image?: Express.Multer.File,
-  ): Promise<Specialty> {
+  ) {
     return this.specialtiesService.update(id, dto, image);
   }
 
-  // Xoá chuyên khoa
+  // ✅ [DELETE] /specialties/:id - Xoá chuyên khoa
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+  async remove(@Param('id', ParseIntPipe) id: number) {
     return this.specialtiesService.remove(id);
-  }
-
-  // Lấy danh sách dịch vụ theo chuyên khoa
-  @Get(':id/services')
-  getServices(@Param('id', ParseIntPipe) id: number): Promise<Service[]> {
-    return this.specialtiesService.getServicesBySpecialtyId(id);
   }
 }

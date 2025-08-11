@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Specialty } from 'src/specialties/entities/specialty.entity';
@@ -20,10 +21,10 @@ export class Doctor {
   @Column({ name: 'user_id', unique: true })
   userId: number;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
-
+  
   @Column({ name: 'full_name', type: 'varchar', length: 100 })
   fullName: string;
 

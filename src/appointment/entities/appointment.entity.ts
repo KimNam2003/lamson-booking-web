@@ -1,5 +1,5 @@
 // src/appointment/entities/appointment.entity.ts
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, OneToOne } from 'typeorm';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { AppointmentSlot } from 'src/appointment-slots/entities/appointment-slot.entity';
 import { AppointmentStatus } from 'src/common/enums/appointment-status.enum';
@@ -8,7 +8,7 @@ export class Appointment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => AppointmentSlot, { eager: true })
+  @OneToOne(() => AppointmentSlot)
   @JoinColumn({ name: 'slot_id' })
   slot: AppointmentSlot;
 

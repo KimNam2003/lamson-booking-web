@@ -12,9 +12,10 @@ export class ScheduleController {
   }
 
   @Get()
-  findAllScheduleByDoctorId(@Query('doctorId') doctorId?: string) {
-    const id = doctorId ? parseInt(doctorId) : undefined;
-    return this.scheduleService.findAllScheduleByDoctorId(id);
+  getSchedulesByDoctorId(
+    @Query('doctorId', ParseIntPipe) doctorId?: number,
+  ) {
+    return this.scheduleService.findAllScheduleByDoctorId(doctorId);
   }
 
   @Get(':id')

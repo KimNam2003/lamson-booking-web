@@ -1,13 +1,17 @@
-import {Injectable, NotFoundException, BadRequestException,
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
 import { AppointmentSlot } from './entities/appointment-slot.entity';
 import { Schedule } from 'src/schedules/entities/schedule.entity';
 import { Service } from 'src/services/entities/service.entity';
 import { DoctorDayOff } from 'src/doctor-of-days/entities/doctor-off-day.enttity';
 import { GenerateSlotDto } from './dto/appointment-slot.dto';
+import * as moment from 'moment-timezone';
 
 @Injectable()
 export class AppointmentSlotService {
@@ -25,7 +29,7 @@ export class AppointmentSlotService {
     private readonly dayOffRepo: Repository<DoctorDayOff>,
   ) {}
 
-  // 🔄 Tạo slot cho 1 schedule trong 1 ngày (kèm kiểm tra ngày nghỉ)
+   // 🔄 Tạo slot cho 1 schedule trong 1 ngày (kèm kiểm tra ngày nghỉ)
   async generateSlots(dto: GenerateSlotDto) {
     const { scheduleId, serviceId, date } = dto;
 
@@ -37,7 +41,12 @@ export class AppointmentSlotService {
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
     }
-
+    const weekdayOfDate = new Date(date).toLocaleString('en-US', { weekday: 'long' });
+    if (weekdayOfDate !== schedule.weekday) {
+      throw new BadRequestException(
+        `Selected date (${date}) does not match schedule's weekday (${schedule.weekday})`,
+      );
+    }
     const doctor = schedule.doctor;
 
     // ✅ Kiểm tra bác sĩ có nghỉ ngày này không
@@ -126,6 +135,38 @@ export class AppointmentSlotService {
 
     return slots;
   }
+
+  async findSlotsByDate(scheduleId: number, date: string) {
+    const schedule = await this.scheduleRepo.findOne({ where: { id: scheduleId } });
+    if (!schedule) throw new NotFoundException('Schedule not found');
+
+    const weekdayOfDate = moment.tz(date, 'Asia/Bangkok').format('dddd');
+    if (weekdayOfDate !== schedule.weekday) {
+      return [];
+    }
+
+    // Xác định đầu và cuối ngày theo múi giờ Asia/Bangkok rồi chuyển sang Date
+    const startOfDay = moment.tz(date, 'Asia/Bangkok').startOf('day').toDate();
+    const endOfDay = moment.tz(date, 'Asia/Bangkok').endOf('day').toDate();
+
+    const slots = await this.slotRepo.find({
+      where: {
+        schedule: { id: scheduleId },
+        startTime: Between(startOfDay, endOfDay),
+      },
+      order: { startTime: 'ASC' },
+    });
+
+    // Chuyển startTime về timezone Asia/Bangkok khi trả về
+    const formattedSlots = slots.map(slot => ({
+      ...slot,
+      startTime: moment(slot.startTime).tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss'),
+      endTime :moment(slot.endTime).tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss'),
+    }));
+
+    return formattedSlots;
+  }
+
 
   // ❌ Xóa slot theo ID
   async delete(id: number) {

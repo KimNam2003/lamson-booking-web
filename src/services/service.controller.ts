@@ -4,48 +4,58 @@ import {
   Post,
   Patch,
   Delete,
-  Param,
   Body,
+  Query,
   ParseIntPipe,
+  Param,
 } from '@nestjs/common';
+import { Type } from 'class-transformer';
+import { ArrayNotEmpty, IsArray, IsInt, Min } from 'class-validator';
 import { ServiceService } from './service.service';
 import { ServiceDto } from './dto/service.dto';
+import { ServiceQueryDto } from './dto/service-query.dto';
 import { Service } from './entities/service.entity';
 
 @Controller('services')
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
 
-  // GET /services
+  // ✅ GET /services?serviceId=...&specialtyId=...&doctorId=...
   @Get()
-  async findAll(): Promise<Service[]> {
-    return this.serviceService.findAll();
+  async findServices(@Query() query: ServiceQueryDto): Promise<Service[]> {
+    return this.serviceService.findServices(query);
   }
 
-  // GET /services/:id
-  @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Service> {
-    return this.serviceService.findOne(id);
-  }
-
-  // POST /services
+  // ✅ POST /services
   @Post()
-  async create(@Body() serviceDto: ServiceDto): Promise<Service> {
+  async createService(@Body() serviceDto: ServiceDto): Promise<Service> {
     return this.serviceService.create(serviceDto);
   }
 
-  // PATCH /services/:id
+  // ✅ PATCH /services/:id
   @Patch(':id')
-  async update(
+  async updateService(
     @Param('id', ParseIntPipe) id: number,
-    @Body() serviceDto: ServiceDto
+    @Body() serviceDto: ServiceDto,
   ): Promise<Service> {
     return this.serviceService.update(id, serviceDto);
   }
 
-  // DELETE /services/:id
+  // ✅ DELETE /services/:id
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+  async deleteService(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ message: string }> {
     return this.serviceService.remove(id);
   }
+
+  // ✅ POST /services/:id/doctors
+  @Post(':id/doctors')
+  async assignDoctorsToService(
+    @Param('id', ParseIntPipe) serviceId: number,
+    @Body() body: { doctorIds: number[] },
+  ) {
+    return this.serviceService.assignDoctorsToService(serviceId, body.doctorIds);
+  }
+
 }

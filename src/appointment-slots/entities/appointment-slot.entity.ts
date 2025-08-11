@@ -23,15 +23,15 @@ export class AppointmentSlot {
   @Column({ name: 'service_id' })
   serviceId: number;
 
-  @Column({ name: 'start_time', type: 'datetime' })
+  @Column({ name: 'start_time', type: 'timestamp' })
   startTime: Date;
 
-  @Column({ name: 'end_time', type: 'datetime' })
+  @Column({ name: 'end_time', type: 'timestamp' })
   endTime: Date;
 
   @Column({ name: 'is_booked', default: false })
   isBooked: boolean;
 
   @OneToOne(() => Appointment, (appointment) => appointment.slot)
-  appointment: Appointment; 
-}
+  appointment: Appointment;
+  }

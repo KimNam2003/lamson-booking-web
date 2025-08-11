@@ -17,6 +17,14 @@ export class AppointmentSlotController {
     return this.slotService.findAll(doctorId ? Number(doctorId) : undefined);
   }
 
+    @Get('schedule/:scheduleId/date/:date')
+    async findSlotsByDate(
+      @Param('scheduleId', ParseIntPipe) scheduleId: number,
+      @Param('date') date: string,
+    ) {
+      return this.slotService.findSlotsByDate(scheduleId, date);
+    }
+
   // ❌ Xóa slot theo ID
   @Delete(':id')
   async delete(@Param('id', ParseIntPipe) id: number) {
