@@ -124,6 +124,7 @@ export class SpecialtiesService {
       );
     }
 
+    Object.assign(specialty, specialtyDto);
     if (image) {
       const imageUrl = await this.uploadAvatarService.saveSpecialty(
         image,
@@ -131,8 +132,6 @@ export class SpecialtiesService {
       );
       specialty.imageUrl = imageUrl;
     }
-
-    Object.assign(specialty, specialtyDto);
 
     try {
       return await this.specialtyRepo.save(specialty);

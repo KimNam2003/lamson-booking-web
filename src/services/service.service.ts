@@ -37,11 +37,11 @@ export class ServiceService {
     }
 
     const specialty = await this.specialtyRepo.findOneBy({
-      id: serviceDto.specialty_id,
+      id: serviceDto.specialtyId,
     });
     if (!specialty) {
       throw new NotFoundException(
-        `Specialty ID ${serviceDto.specialty_id} does not exist`,
+        `Specialty ID ${serviceDto.specialtyId} does not exist`,
       );
     }
 
@@ -58,14 +58,15 @@ export class ServiceService {
   }
 
   // Find services with flexible query
-  async findServices(query: ServiceQueryDto): Promise<Service[]> {
-    const { serviceId, specialtyId, doctorId, name } = query;
+  async findServices(query: ServiceQueryDto): Promise<{ data: Service[]; total: number }> {
+    const { serviceId, specialtyId, doctorId, name, page = 1, limit = 10 } = query;
 
     const qb = this.serviceRepo.createQueryBuilder('service')
       .leftJoinAndSelect('service.specialty', 'specialty')
       .leftJoinAndSelect('service.doctorServices', 'doctorServices')
       .leftJoinAndSelect('doctorServices.doctor', 'doctor');
 
+    // Lọc theo các điều kiện nếu có
     if (serviceId) {
       qb.andWhere('service.id = :serviceId', { serviceId });
     }
@@ -78,14 +79,17 @@ export class ServiceService {
     if (name) {
       qb.andWhere('service.name LIKE :name', { name: `%${name}%` });
     }
+     qb.orderBy('service.id', 'ASC');
+    // Lấy tổng số record trước khi phân trang
+    const total = await qb.getCount();
 
-    const results = await qb.getMany();
+    // Lấy dữ liệu với phân trang
+    const data = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
 
-    if ((serviceId || specialtyId || doctorId) && results.length === 0) {
-      throw new NotFoundException(`No services found for given query`);
-    }
-
-    return results;
+    return { data, total };
   }
 
   // Update services
@@ -108,16 +112,16 @@ export class ServiceService {
       serviceDto.name = name;
     }
 
-    const { specialty_id, ...restDto } = serviceDto;
+    const { specialtyId, ...restDto } = serviceDto;
     Object.assign(service, restDto);
-    if ('specialty_id' in serviceDto) {
-      if (specialty_id === null) {
+    if ('specialtyId' in serviceDto) {
+      if (specialtyId === null) {
         throw new BadRequestException(`Field "specialty_id" cannot be null`);
       }
 
-      const specialty = await this.specialtyRepo.findOneBy({ id: specialty_id });
+      const specialty = await this.specialtyRepo.findOneBy({ id: specialtyId });
       if (!specialty) {
-        throw new NotFoundException(`Specialty with ID ${specialty_id} not found`);
+        throw new NotFoundException(`Specialty with ID ${specialtyId} not found`);
       }
 
       service.specialty = specialty;
@@ -166,8 +170,6 @@ export class ServiceService {
         `Doctors with IDs ${invalidDoctors.map(d => d.id).join(', ')} do not match the service's specialty`,
       );
     }
-
-    // Xóa gán cũ
     await this.doctorServiceRepo.delete({ service: { id: serviceId } });
 
     // Tạo gán mới

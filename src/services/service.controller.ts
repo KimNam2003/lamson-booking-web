@@ -9,20 +9,17 @@ import {
   ParseIntPipe,
   Param,
 } from '@nestjs/common';
-import { Type } from 'class-transformer';
-import { ArrayNotEmpty, IsArray, IsInt, Min } from 'class-validator';
 import { ServiceService } from './service.service';
 import { ServiceDto } from './dto/service.dto';
 import { ServiceQueryDto } from './dto/service-query.dto';
 import { Service } from './entities/service.entity';
-
 @Controller('services')
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
 
   // ✅ GET /services?serviceId=...&specialtyId=...&doctorId=...
   @Get()
-  async findServices(@Query() query: ServiceQueryDto): Promise<Service[]> {
+  async findServices(@Query() query: ServiceQueryDto):  Promise<{ data: Service[]; total: number }> {
     return this.serviceService.findServices(query);
   }
 

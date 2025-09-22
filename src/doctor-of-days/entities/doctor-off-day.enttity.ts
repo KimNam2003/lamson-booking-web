@@ -1,3 +1,4 @@
+import { DoctorDayOffStatus } from 'src/common/enums/doctor-day-off-status.enum';
 import { Doctor } from 'src/doctors/entities/doctor.entity';
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
@@ -16,6 +17,12 @@ export class DoctorDayOff {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   reason: string | null;
+
+  @Column({ 
+  type: 'enum', 
+  enum: DoctorDayOffStatus, 
+  default: DoctorDayOffStatus.PENDING })
+  status: DoctorDayOffStatus;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

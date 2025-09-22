@@ -4,9 +4,10 @@ import { Gender } from "src/common/enums/gender.enum";
 export class PatientDto {
   @IsString()
   fullName: string;
-
+  
+  @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
   @IsOptional()
   @IsEnum(Gender)

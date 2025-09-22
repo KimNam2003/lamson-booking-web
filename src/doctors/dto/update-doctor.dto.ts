@@ -22,10 +22,6 @@ export class UpdateDoctorDto {
   specialtyId: number;
 
   @IsOptional()
-  @IsUrl()
-  avatarUrl?: string;
-
-  @IsOptional()
   @IsInt()
   @Min(0)
   @Type(() => Number)

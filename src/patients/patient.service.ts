@@ -7,6 +7,7 @@ import { Patient } from './entities/patient.entity';
 import { EntityManager, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { PatientDto } from './dto/patient.dto';
+import { Gender } from 'src/common/enums/gender.enum';
 
 @Injectable()
 export class PatientService {
@@ -44,12 +45,36 @@ export class PatientService {
   }
 
   // 2. Get all patients (pagination)
-  async getAllPatients(page = 1, limit = 10) {
-    const [patients, total] = await this.patientRepo.findAndCount({
-      order: { id: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+
+  async getAllPatients(
+    page = 1,
+    limit = 10,
+    userId?: number,
+    fullName?: string,
+    gender?: Gender,
+  ) {
+    const query = this.patientRepo
+        .createQueryBuilder('patient')
+        .leftJoinAndSelect('patient.user', 'user');
+        
+    if (userId) {
+      query.andWhere('patient.userId = :userId', { userId });
+    }
+
+    if (fullName) {
+      query.andWhere('patient.fullName LIKE :fullName', {
+        fullName: `%${fullName}%`,
+      });
+    }
+
+    if (gender) {
+      query.andWhere('patient.gender = :gender', { gender });
+    }
+    query.orderBy('patient.id', 'DESC');
+
+    query.skip((page - 1) * limit).take(limit);
+
+    const [patients, total] = await query.getManyAndCount();
 
     return {
       data: patients,
@@ -58,6 +83,18 @@ export class PatientService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async getPatientByUserId(userId: number) {
+    const patient = await this.patientRepo.findOne({
+      where: { user: { id: userId } }, // vì user là object quan hệ
+    });
+
+    if (!patient) {
+      throw new NotFoundException(`Patient with userId ${userId} not found`);
+    }
+
+    return patient;
   }
 
   // 3. Update patient

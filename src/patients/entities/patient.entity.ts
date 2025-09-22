@@ -30,6 +30,7 @@ export class Patient {
     nullable: true,
   })
   gender: Gender
+  
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
   user: User;

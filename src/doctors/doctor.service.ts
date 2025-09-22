@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import { Doctor } from './entities/doctor.entity';
@@ -59,7 +59,7 @@ export class DoctorService {
       qb.andWhere('doctor.experience_years >= :experienceYears', { experienceYears });
     }
     if (keyword) {
-      qb.andWhere('(doctor.full_name LIKE :kw OR doctor.description LIKE :kw)', { kw: `%${keyword}%` });
+      qb.andWhere('(doctor.full_name LIKE :kw)', { kw: `%${keyword}%` });
     }
 
     qb.orderBy('doctor.id', 'DESC');
@@ -89,7 +89,7 @@ export class DoctorService {
   async getDoctorByUserId(userId: number) {
     const doctor = await this.doctorRepo.findOne({
       where: { user: { id: userId } },
-      relations: ['specialty', 'doctorServices', 'doctorServices.service', 'user'],
+      relations: ['specialty'],
     });
     if (!doctor) throw new NotFoundException('Doctor not found');
     return doctor;
@@ -97,8 +97,14 @@ export class DoctorService {
 
   // ✅ Update doctor
   async updateDoctor(id: number, dto: UpdateDoctorDto, file?: Express.Multer.File) {
-    const doctor = await this.doctorRepo.findOne({ where: { id } });
+    const doctor = await this.doctorRepo.findOne({
+      where: { id },
+      relations: ['specialty'],
+    });
     if (!doctor) throw new NotFoundException('Doctor not found');
+
+    // Cập nhật các field từ dto
+    Object.assign(doctor, dto);
 
     if (dto.specialtyId) {
       const specialty = await this.specialtyRepo.findOne({ where: { id: dto.specialtyId } });
@@ -106,23 +112,37 @@ export class DoctorService {
       doctor.specialty = specialty;
     }
 
+    // Nếu có file thì update avatar
     if (file) {
       doctor.avatarUrl = await this.uploadAvatarService.saveDoctorAvatar(file, id);
     }
 
-    Object.assign(doctor, dto);
     return this.doctorRepo.save(doctor);
   }
 
   // ✅ Assign services
   async assignServices(doctorId: number, serviceIds: number[]) {
-    const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
+    const doctor = await this.doctorRepo.findOne({ where:
+       { id: doctorId },
+        relations: ['specialty'],
+     }); 
     if (!doctor) throw new NotFoundException('Doctor not found');
 
-    const services = await this.serviceRepo.find({ where: { id: In(serviceIds) } });
+    const services = await this.serviceRepo.find(
+      { where: { id: In(serviceIds) },  
+      relations: ['specialty'],
+ });
     if (services.length !== serviceIds.length) {
       throw new NotFoundException('Some service IDs are invalid');
     }
+    const invalidServices = services.filter(
+      (s) => !s.specialty || s.specialty.id !== doctor.specialty.id
+    );
+  if (invalidServices.length > 0) {
+    throw new BadRequestException(
+`Services with IDs ${invalidServices.map(s => s.id).join(', ')} do not match the doctor's specialty`,
+    );
+  }
 
     await this.doctorServiceRepo.delete({ doctor: { id: doctorId } });
 

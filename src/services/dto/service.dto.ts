@@ -35,7 +35,7 @@ export class ServiceDto {
   @Type(() => Number)
   @IsNumber()
   @IsPositive({ message: 'specialty_id must be a positive integer' })
-  specialty_id?: number;
+  specialtyId?: number;
 
   @IsString()
   @IsOptional()

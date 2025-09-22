@@ -1,12 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsDateString, IsDate } from 'class-validator';
+import { IsInt, IsDateString, IsDate, IsArray } from 'class-validator';
 
 export class GenerateSlotDto {
-  @IsInt()
-  scheduleId: number;
+  @IsArray()
+  @IsInt({ each: true })
+  scheduleIds: number[];
 
-  @IsInt()
-  serviceId: number;
+ @IsArray()
+  serviceIds: number[];
 
   @IsDateString()
   date: string;

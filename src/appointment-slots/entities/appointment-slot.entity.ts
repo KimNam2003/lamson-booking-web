@@ -2,7 +2,7 @@ import { Appointment } from "src/appointment/entities/appointment.entity";
 import { Doctor } from "src/doctors/entities/doctor.entity";
 import { Schedule } from "src/schedules/entities/schedule.entity";
 import { Service } from "src/services/entities/service.entity";
-import { Column, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity('appointment_slots')
 export class AppointmentSlot {
@@ -23,15 +23,18 @@ export class AppointmentSlot {
   @Column({ name: 'service_id' })
   serviceId: number;
 
-  @Column({ name: 'start_time', type: 'timestamp' })
+  @Column({ name: 'start_time', type: 'timestamp' ,})
   startTime: Date;
 
-  @Column({ name: 'end_time', type: 'timestamp' })
+  @Column({ name: 'end_time', type: 'timestamp' ,})
   endTime: Date;
 
   @Column({ name: 'is_booked', default: false })
   isBooked: boolean;
 
-  @OneToOne(() => Appointment, (appointment) => appointment.slot)
-  appointment: Appointment;
+  @Column({ name: 'is_active', default: true }) 
+  isActive: boolean;
+
+  @OneToMany(() => Appointment, (appointment) => appointment.slot)
+  appointments: Appointment[]
   }

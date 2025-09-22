@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import {  Repository } from 'typeorm';
 
 import { AppointmentSlot } from './entities/appointment-slot.entity';
 import { Schedule } from 'src/schedules/entities/schedule.entity';
@@ -12,6 +12,9 @@ import { Service } from 'src/services/entities/service.entity';
 import { DoctorDayOff } from 'src/doctor-of-days/entities/doctor-off-day.enttity';
 import { GenerateSlotDto } from './dto/appointment-slot.dto';
 import * as moment from 'moment-timezone';
+import { AppointmentStatus } from 'src/common/enums/appointment-status.enum';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
+import { DoctorDayOffStatus } from 'src/common/enums/doctor-day-off-status.enum';
 
 @Injectable()
 export class AppointmentSlotService {
@@ -27,99 +30,117 @@ export class AppointmentSlotService {
 
     @InjectRepository(DoctorDayOff)
     private readonly dayOffRepo: Repository<DoctorDayOff>,
+
+    @InjectRepository(Appointment)
+    private readonly appointmentRepo: Repository<Appointment>,
+
   ) {}
 
    // 🔄 Tạo slot cho 1 schedule trong 1 ngày (kèm kiểm tra ngày nghỉ)
+
   async generateSlots(dto: GenerateSlotDto) {
-    const { scheduleId, serviceId, date } = dto;
+    const { scheduleIds, serviceIds, date } = dto;
 
-    const schedule = await this.scheduleRepo.findOne({
-      where: { id: scheduleId },
-      relations: ['doctor'],
-    });
-
-    if (!schedule) {
-      throw new NotFoundException('Schedule not found');
-    }
-    const weekdayOfDate = new Date(date).toLocaleString('en-US', { weekday: 'long' });
-    if (weekdayOfDate !== schedule.weekday) {
-      throw new BadRequestException(
-        `Selected date (${date}) does not match schedule's weekday (${schedule.weekday})`,
-      );
-    }
-    const doctor = schedule.doctor;
-
-    // ✅ Kiểm tra bác sĩ có nghỉ ngày này không
-    const doctorDayOff = await this.dayOffRepo.findOne({
-      where: {
-        doctor: { id: doctor.id },
-        date: date,
-      },
-    });
-
-    if (doctorDayOff) {
-      throw new BadRequestException('Doctor is on leave for this date');
+    if (!scheduleIds || !scheduleIds.length) {
+      throw new BadRequestException('Chưa cung cấp scheduleIds');
     }
 
-    const service = await this.serviceRepo.findOne({
-      where: { id: serviceId },
-    });
-
-    if (!service) {
-      throw new NotFoundException('Service not found');
+    if (!serviceIds || !serviceIds.length) {
+      throw new BadRequestException('Chưa cung cấp serviceIds');
     }
-
-    const [startHour, startMin] = schedule.startTime.split(':').map(Number);
-    const [endHour, endMin] = schedule.endTime.split(':').map(Number);
-
-    const start = new Date(date);
-    start.setHours(startHour, startMin, 0, 0);
-
-    const end = new Date(date);
-    end.setHours(endHour, endMin, 0, 0);
 
     const createdSlots: AppointmentSlot[] = [];
-    let slotStart = new Date(start);
 
-    while (slotStart < end) {
-      const slotEnd = new Date(
-        slotStart.getTime() + service.duration_minutes * 60 * 1000,
-      );
-
-      if (slotEnd > end) break;
-
-      const exists = await this.slotRepo.findOne({
-        where: {
-          schedule: { id: scheduleId },
-          service: { id: serviceId },
-          startTime: slotStart,
-          endTime: slotEnd,
-        },
-      });
-
-      if (exists) {
-        throw new BadRequestException(
-          `Slot from ${slotStart.toISOString()} to ${slotEnd.toISOString()} already exists`,
-        );
+    for (const serviceId of serviceIds) {
+      const service = await this.serviceRepo.findOne({ where: { id: serviceId } });
+      if (!service) {
+        throw new NotFoundException(`Không tìm thấy service với id ${serviceId}`);
       }
 
-      const slot = this.slotRepo.create({
-        schedule,
-        service,
-        startTime: new Date(slotStart),
-        endTime: new Date(slotEnd),
-        isBooked: false,
-      });
+      for (const scheduleId of scheduleIds) {
+        const schedule = await this.scheduleRepo.findOne({
+          where: { id: scheduleId },
+          relations: ['doctor'],
+        });
 
-      await this.slotRepo.save(slot);
-      createdSlots.push(slot);
+        if (!schedule) {
+          throw new NotFoundException(`Không tìm thấy schedule với id ${scheduleId}`);
+        }
 
-      slotStart = new Date(
-        slotStart.getTime() + service.duration_minutes * 60 * 1000,
-      );
+        // Check weekday
+        const weekdayOfDate = new Date(date).toLocaleString('en-US', { weekday: 'long' });
+        if (weekdayOfDate !== schedule.weekday) {
+          throw new BadRequestException(
+            `Ngày chọn (${date}) không khớp với lịch của bác sĩ (${schedule.weekday})`,
+          );
+        }
+
+        const doctor = schedule.doctor;
+
+        // Kiểm tra ngày nghỉ đã được duyệt
+       const doctorDayOff = await this.dayOffRepo.findOne({
+          where: { 
+            doctor: { id: doctor.id }, 
+            date, 
+            status: DoctorDayOffStatus.CONFIRMED, // dùng enum thay vì string
+          },
+        });
+
+        if (doctorDayOff) {
+          throw new BadRequestException('Bác sĩ đã nghỉ vào ngày này');
+        }
+
+        const [startHour, startMin] = schedule.startTime.split(':').map(Number);
+        const [endHour, endMin] = schedule.endTime.split(':').map(Number);
+
+        const start = new Date(date);
+        start.setHours(startHour, startMin, 0, 0);
+
+        const end = new Date(date);
+        end.setHours(endHour, endMin, 0, 0);
+
+        let slotStart = new Date(start);
+
+        while (slotStart < end) {
+          const slotEnd = new Date(slotStart.getTime() + service.duration_minutes * 60 * 1000);
+          if (slotEnd > end) break;
+
+          const exists = await this.slotRepo.findOne({
+            where: {
+              schedule: { id: scheduleId },
+              service: { id: serviceId },
+              startTime: slotStart,
+              endTime: slotEnd,
+            },
+          });
+
+          if (exists) {
+            throw new BadRequestException('Lịch khám đã tồn tại');
+          }
+
+          const slot = this.slotRepo.create({
+            schedule,
+            service,
+            startTime: slotStart,
+            endTime: slotEnd,
+            isBooked: false,
+            isActive: true,
+          });
+
+          await this.slotRepo.save(slot);
+          createdSlots.push(slot);
+
+          slotStart = new Date(slotStart.getTime() + service.duration_minutes * 60 * 1000);
+        }
+      }
     }
 
-    return createdSlots;
+    // Chuyển kết quả sang giờ VN trước khi trả API
+    return createdSlots.map((slot) => ({
+      ...slot,
+      startTime: moment(slot.startTime).tz('Asia/Ho_Chi_Minh').format('YYYY-MM-DD HH:mm:ss'),
+      endTime: moment(slot.endTime).tz('Asia/Ho_Chi_Minh').format('YYYY-MM-DD HH:mm:ss'),
+    }));
   }
 
   // 📄 Lấy tất cả slot (lọc theo doctor nếu có)
@@ -136,36 +157,69 @@ export class AppointmentSlotService {
     return slots;
   }
 
-  async findSlotsByDate(scheduleId: number, date: string) {
+  async findSlotsByDate(scheduleId: number, serviceId: number, date: string) {
     const schedule = await this.scheduleRepo.findOne({ where: { id: scheduleId } });
     if (!schedule) throw new NotFoundException('Schedule not found');
 
     const weekdayOfDate = moment.tz(date, 'Asia/Bangkok').format('dddd');
-    if (weekdayOfDate !== schedule.weekday) {
-      return [];
-    }
+    if (weekdayOfDate !== schedule.weekday) return [];
 
-    // Xác định đầu và cuối ngày theo múi giờ Asia/Bangkok rồi chuyển sang Date
     const startOfDay = moment.tz(date, 'Asia/Bangkok').startOf('day').toDate();
     const endOfDay = moment.tz(date, 'Asia/Bangkok').endOf('day').toDate();
 
-    const slots = await this.slotRepo.find({
-      where: {
-        schedule: { id: scheduleId },
-        startTime: Between(startOfDay, endOfDay),
-      },
-      order: { startTime: 'ASC' },
-    });
+    // Lấy tất cả slot trong ngày
+    const slots = await this.slotRepo
+      .createQueryBuilder('slot')
+      .leftJoinAndSelect('slot.schedule', 'schedule')
+      .leftJoinAndSelect('slot.service', 'service')
+      .where('schedule.id = :scheduleId', { scheduleId })
+      .andWhere('service.id = :serviceId', { serviceId })
+      .andWhere('slot.startTime BETWEEN :startOfDay AND :endOfDay', { startOfDay, endOfDay })
+      .orderBy('slot.startTime', 'ASC')
+      .getMany();
 
-    // Chuyển startTime về timezone Asia/Bangkok khi trả về
-    const formattedSlots = slots.map(slot => ({
-      ...slot,
-      startTime: moment(slot.startTime).tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss'),
-      endTime :moment(slot.endTime).tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss'),
-    }));
+    // Lấy tất cả appointment PENDING/CONFIRMED của doctor
+      const overlappingAppointments = await this.appointmentRepo
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.slot', 'slot') // <- quan trọng
+      .leftJoin('slot.schedule', 'schedule')
+      .where('schedule.id = :scheduleId', { scheduleId })
+      .andWhere('appointment.status IN (:...statuses)', { statuses: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] })
+      .getMany();
+
+
+      const formattedSlots = slots.map(slot => {
+      // Kiểm tra slot có trùng giờ với appointment nào không
+        const isBooked = overlappingAppointments.some(app => 
+          slot.startTime < app.slot.endTime && slot.endTime > app.slot.startTime
+        );
+
+      return {
+        ...slot,
+        startTime: moment(slot.startTime).tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss'),
+        endTime: moment(slot.endTime).tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss'),
+        isBooked,
+        isActive: slot.isActive,
+      };
+    });
 
     return formattedSlots;
   }
+  // 🔄 Cập nhật isActive của slot
+async updateIsActive(slotId: number, isActive: boolean) {
+  const slot = await this.slotRepo.findOne({ where: { id: slotId } });
+  if (!slot) throw new NotFoundException('Slot not found');
+
+  slot.isActive = isActive;
+  await this.slotRepo.save(slot);
+
+  // Trả về slot đã cập nhật kèm format thời gian VN
+  return {
+    ...slot,
+    startTime: moment(slot.startTime).tz('Asia/Ho_Chi_Minh').format('YYYY-MM-DD HH:mm:ss'),
+    endTime: moment(slot.endTime).tz('Asia/Ho_Chi_Minh').format('YYYY-MM-DD HH:mm:ss'),
+  };
+}
 
 
   // ❌ Xóa slot theo ID

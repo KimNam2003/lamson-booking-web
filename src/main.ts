@@ -18,6 +18,8 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+    console.log('Server timezone:', new Date().toString());
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

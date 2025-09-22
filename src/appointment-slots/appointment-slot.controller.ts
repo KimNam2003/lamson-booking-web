@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { AppointmentSlotService } from './appointment-slot.service';
 import { GenerateSlotDto } from './dto/appointment-slot.dto';
 @Controller('appointment-slots')
@@ -17,13 +17,26 @@ export class AppointmentSlotController {
     return this.slotService.findAll(doctorId ? Number(doctorId) : undefined);
   }
 
-    @Get('schedule/:scheduleId/date/:date')
+    @Get('by-date')
     async findSlotsByDate(
-      @Param('scheduleId', ParseIntPipe) scheduleId: number,
-      @Param('date') date: string,
-    ) {
-      return this.slotService.findSlotsByDate(scheduleId, date);
+    @Query('scheduleId', ParseIntPipe) scheduleId: number,
+    @Query('serviceId', ParseIntPipe) serviceId: number,
+    @Query('date') date: string,
+  ) {
+    if (!date) {
+      throw new BadRequestException('Query parameter "date" is required');
     }
+    return this.slotService.findSlotsByDate(scheduleId, serviceId, date);
+  }
+
+  @Patch(':id/active')
+  async setActive(
+  @Param('id') id: number,
+  @Body('isActive') isActive: boolean
+) {
+  return this.slotService.updateIsActive(id, isActive);
+}
+
 
   // ❌ Xóa slot theo ID
   @Delete(':id')

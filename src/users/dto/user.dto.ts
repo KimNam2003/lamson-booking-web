@@ -3,13 +3,13 @@ import { UserRole } from 'src/common/enums/role.enum';
 
 export class UserDto {
   @IsEmail()
-  email: string;
+  email?: string;
 
   @IsOptional()
   @IsString()
-  password: string;
+  password?: string;
 
   @IsEnum(UserRole)
-  role: UserRole;
+  role?: UserRole;
 
 }

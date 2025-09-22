@@ -1,4 +1,14 @@
-import { Controller, Post, Body, Get, Param, Patch, Delete, Query, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  Delete,
+  Query,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ScheduleService } from './schedule.service';
 import { ScheduleDto } from './dto/schedule.dto';
 
@@ -12,10 +22,18 @@ export class ScheduleController {
   }
 
   @Get()
-  getSchedulesByDoctorId(
-    @Query('doctorId', ParseIntPipe) doctorId?: number,
+  findSchedules(
+    @Query('doctorId') doctorId?: number,
+    @Query('weekday') weekday?: number,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
   ) {
-    return this.scheduleService.findAllScheduleByDoctorId(doctorId);
+    return this.scheduleService.findSchedules(
+      doctorId ? Number(doctorId) : undefined,
+      weekday !== undefined ? Number(weekday) : undefined,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Get(':id')

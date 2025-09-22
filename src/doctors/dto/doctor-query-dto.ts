@@ -30,9 +30,6 @@ export class ListDoctorQueryDto {
   @Min(0)
   experienceYears?: number; // ✅ camelCase
 
-  @IsOptional()
-  @IsString()
-  fullName?: string; // ✅ camelCase
 
   @IsOptional()
   @IsString()

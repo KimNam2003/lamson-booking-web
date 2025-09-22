@@ -25,6 +25,7 @@ import { CreateUserWithProfileDto } from './dto/create-user-with-profile.dto';
 import { DoctorService } from 'src/doctors/doctor.service';
 import { UploadAvatarService } from 'src/UploadAvatar/UploadAvatar.service';
 import { PatientService } from 'src/patients/patient.service';
+import { QueryUsersDto } from './dto/query-user.dto';
 
 @Injectable()
 export class UserService {
@@ -57,77 +58,91 @@ export class UserService {
   ) {}
 
   async createUser(
-  dto: CreateUserWithProfileDto,
-  avatar?: Express.Multer.File,
-): Promise<User> {
-  const queryRunner = this.dataSource.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
+    dto: CreateUserWithProfileDto,
+    avatar?: Express.Multer.File,
+  ): Promise<User> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-  try {
-    const { email, password, role, profile } = dto;
+    try {
+      const { email, password, role, profile } = dto;
 
-    const existingUser = await queryRunner.manager.findOne(User, {
-      where: { email },
-    });
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = this.userRepository.create({
-      email,
-      passwordHash: hashedPassword,
-      role,
-    });
-
-    const savedUser = await queryRunner.manager.save(User, newUser);
-
-    let avatarUrl: string | undefined;
-    if (avatar) {
-      avatarUrl = await this.uploadAvatarService.saveDoctorAvatar(avatar, savedUser.id);
-    }
-
-    if (role === UserRole.Doctor) {
-      const doctorDto = profile as DoctorDto;
-      if (avatarUrl) {
-        doctorDto.avatarUrl = avatarUrl;
+      // Kiểm tra SuperAdmin
+      if (role === UserRole.SuperAdmin) {
+        const superAdminExists = await queryRunner.manager.count(User, {
+          where: { role: UserRole.SuperAdmin },
+        });
+        if (superAdminExists > 0) {
+          throw new BadRequestException("SuperAdmin đã tồn tại, không thể tạo thêm");
+        }
       }
-      await this.doctorService.createDoctorProfile(savedUser, doctorDto,queryRunner.manager);
-    }
 
-    if (role === UserRole.Patient) {
-      await this.patientService.createPatientProfile(savedUser, profile as PatientDto,queryRunner.manager);
-    }
+      // Kiểm tra email đã tồn tại
+      const existingUser = await queryRunner.manager.findOne(User, { where: { email } });
+      if (existingUser) {
+        throw new ConflictException("Email already exists");
+      }
 
-    await queryRunner.commitTransaction();
-    return savedUser;
-  } catch (err) {
-    await queryRunner.rollbackTransaction();
-    throw err;
-  } finally {
-    await queryRunner.release();
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Tạo user
+      const newUser = this.userRepository.create({
+        email,
+        passwordHash: hashedPassword,
+        role,
+      });
+      const savedUser = await queryRunner.manager.save(User, newUser);
+
+      // Xử lý profile bác sĩ
+      if (role === UserRole.Doctor) {
+        const doctorDto = profile as DoctorDto;
+
+        // Tạo doctor profile trước để có doctor.id
+        const savedDoctor = await this.doctorService.createDoctorProfile(
+          savedUser,
+          doctorDto,
+          queryRunner.manager,
+        );
+
+        // Nếu có avatar, lưu theo doctor.id
+        if (avatar) {
+          const avatarUrl = await this.uploadAvatarService.saveDoctorAvatar(
+            avatar,
+            savedDoctor.id,
+          );
+          savedDoctor.avatarUrl = avatarUrl;
+          await queryRunner.manager.save(savedDoctor);
+        }
+      }
+
+      // Xử lý profile bệnh nhân
+      if (role === UserRole.Patient) {
+        await this.patientService.createPatientProfile(
+          savedUser,
+          profile as PatientDto,
+          queryRunner.manager,
+        );
+      }
+
+      await queryRunner.commitTransaction();
+      return savedUser;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
-}
+
   
  // Cập nhật email hoặc mật khẩu
   async updateUser(id: number, dto: UpdateUserDto) {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
-    // Nếu muốn cập nhật email hoặc mật khẩu thì phải xác nhận mật khẩu cũ
-    if (dto.email || dto.newPassword) {
-      if (!dto.oldPassword) {
-        throw new BadRequestException('Vui lòng nhập mật khẩu cũ để xác nhận');
-      }
-
-      const isMatch = await bcrypt.compare(dto.oldPassword, user.passwordHash);
-      if (!isMatch) {
-        throw new UnauthorizedException('Mật khẩu cũ không đúng');
-      }
-    }
-
+    // Cập nhật email (nếu có)
     if (dto.email) {
       const existing = await this.userRepository.findOne({ where: { email: dto.email } });
       if (existing && existing.id !== id) {
@@ -136,6 +151,7 @@ export class UserService {
       user.email = dto.email;
     }
 
+    // Cập nhật mật khẩu (nếu có)
     if (dto.newPassword) {
       const salt = await bcrypt.genSalt();
       user.passwordHash = await bcrypt.hash(dto.newPassword, salt);
@@ -172,15 +188,25 @@ export class UserService {
   }
 
   // ✅ Lấy danh sách người dùng (có tìm kiếm và phân trang)
-  async getAllUsers(search = '', page = 1, limit = 10) {
-    const [users, total] = await this.userRepository.findAndCount({
-      where: search
-        ? [{ email: Like(`%${search}%`) }]
-        : {},
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { id: 'DESC' },
-    });
+  async getAllUsers(dto: QueryUsersDto) {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 10;
+
+    const qb = this.userRepository.createQueryBuilder('u');
+
+    if (dto.search) {
+      qb.andWhere('u.email LIKE :email', { email: `%${dto.search}%` });
+    }
+
+    if (dto.role) {
+      qb.andWhere('u.role = :role', { role: dto.role });
+    }
+
+    qb.orderBy('u.id', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [users, total] = await qb.getManyAndCount();
 
     return {
       data: users.map((u) => instanceToPlain(u)),
@@ -189,4 +215,35 @@ export class UserService {
       limit,
     };
   }
+
+  // async getUserProfile(userId: number | undefined) {
+  //   if (!userId) {
+  //     throw new BadRequestException('User ID is required');
+  //   }
+
+  //   // Lấy user cơ bản
+  //   const user = await this.userRepository.findOne({ where: { id: userId } });
+  //   if (!user) throw new NotFoundException('User not found');
+
+  //   let profile: Patient | Doctor | null = null;
+  //   if (user.role === UserRole.Patient) {
+  //     profile = await this.patientRepository.findOne({
+  //       where: { user: { id: userId } },
+  //       relations: ['user'],
+  //     });
+  //   } else if (user.role === UserRole.Doctor) {
+  //     profile = await this.doctorRepository.findOne({
+  //       where: { user: { id: userId } },
+  //       relations: ['user'],
+  //     });
+  //   }
+
+  //   return {
+  //     ...instanceToPlain(user),
+  //     profile: profile ? instanceToPlain(profile) : null,
+  //   };
+  
+
+
+  
 }

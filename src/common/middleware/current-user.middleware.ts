@@ -16,10 +16,9 @@ export class AuthMiddleware implements NestMiddleware {
 
     const token = authHeader.split(' ')[1];
     console.log(token)
-
     try {
       const payload = await this.jwtService.verifyAsync(token);
-
+      console.log('payload',payload)
       req['user'] = payload;
       next(); 
     } catch (err) {

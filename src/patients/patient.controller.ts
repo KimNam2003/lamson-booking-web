@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { PatientService } from './patient.service';
 import { PatientDto } from './dto/patient.dto';
+import { Gender } from 'src/common/enums/gender.enum';
 
 @Controller('patients')
 export class PatientController {
@@ -22,13 +23,23 @@ export class PatientController {
   }
 
   // 2. Get all patients with pagination
-  @Get()
-  getAllPatients(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
+    @Get()
+  async getAllPatients(
+    @Query('page', ParseIntPipe) page = 1,
+    @Query('limit', ParseIntPipe) limit = 10,
+    @Query('userId') userId?: string,
+    @Query('fullName') fullName?: string,
+    @Query('gender') gender?: Gender,
   ) {
-    return this.patientService.getAllPatients(+page, +limit);
+    return this.patientService.getAllPatients(
+      page,
+      limit,
+      userId ? parseInt(userId, 10) : undefined,
+      fullName,
+      gender,
+    );
   }
+
 
   // 3. Update patient
   @Put(':id')
@@ -44,4 +55,10 @@ export class PatientController {
   deletePatient(@Param('id', ParseIntPipe) id: number) {
     return this.patientService.deletePatient(id);
   }
+
+  @Get('by-user/:userId')
+  async getPatientByUserId(@Param('userId') userId: string) {
+    return this.patientService.getPatientByUserId(parseInt(userId, 10));
+  }
+
 }

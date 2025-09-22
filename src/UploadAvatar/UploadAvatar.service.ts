@@ -5,7 +5,7 @@ import * as fs from 'fs';
 @Injectable()
 export class UploadAvatarService {
   async saveDoctorAvatar(file: Express.Multer.File, doctorId: number): Promise<string> {
-    const folder = path.join(process.cwd(), 'public', 'users', doctorId.toString());
+    const folder = path.join(process.cwd(), 'public', 'avatars', doctorId.toString());
 
     if (!fs.existsSync(folder)) {
       fs.mkdirSync(folder, { recursive: true });
@@ -19,7 +19,7 @@ export class UploadAvatarService {
     const filePath = path.join(folder, file.originalname);
     fs.writeFileSync(filePath, file.buffer);
 
-    return `/users/${doctorId}/${file.originalname}`;
+    return `/avatars/${doctorId}/${file.originalname}`;
   }
 
   async saveSpecialty(file: Express.Multer.File, specialtyName: string): Promise<string> {
