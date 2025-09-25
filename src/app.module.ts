@@ -18,6 +18,8 @@ import { DoctorDayOffModule } from './doctor-of-days/doctor-day-off.module';
 import { MedicalHistoryModule } from './history/history.module';
 import { SchedulesModule } from './schedules/schedule.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PaymentModule } from './payment/payment.module';
+import { MailModule } from './mailer/mailer.module';
 
 @Module({
   imports: [
@@ -48,6 +50,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     AppointmentModule,
     DoctorDayOffModule,
     MedicalHistoryModule,
+    PaymentModule,
+    MailModule,
      ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

@@ -44,7 +44,7 @@ export class DoctorDayOffService {
   async findByDoctor(doctorId: number) {
     return await this.dayOffRepo.find({
       where: { doctor: { id: doctorId } },
-      order: { date: 'ASC' },
+      order: { date: 'DESC' },
       relations: ['doctor'],
     });
   }
@@ -60,7 +60,7 @@ export class DoctorDayOffService {
   async findAll(filter?: QueryDoctorDayOffDto) {
     const query = this.dayOffRepo.createQueryBuilder('dayOff')
       .leftJoinAndSelect('dayOff.doctor', 'doctor')
-      .orderBy('dayOff.date', 'ASC');
+      .orderBy('dayOff.date', 'DESC');
 
     if (filter?.doctorId) {
       query.andWhere('doctor.id = :doctorId', { doctorId: filter.doctorId });

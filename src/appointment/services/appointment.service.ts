@@ -13,12 +13,15 @@ import { AppointmentStatus } from 'src/common/enums/appointment-status.enum';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
 import {JwtPayload } from 'src/auth/types/types';
 import * as moment from 'moment-timezone';
+import { MailService } from 'src/mailer/mailer.service';
 
 @Injectable()
 export class AppointmentService {
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
+    private readonly mailService: MailService,
+
 
     private readonly dataSource: DataSource,
   ) {}
@@ -145,6 +148,7 @@ async createAppointment(dto: CreateAppointmentDto, user: JwtPayload) {
         'slot.schedule.doctor.schedules',
         'patient',
         'medicalHistory'
+
       ],
     });
 
@@ -166,37 +170,36 @@ async createAppointment(dto: CreateAppointmentDto, user: JwtPayload) {
   }
 
   // 4. Cập nhật trạng thái (Doctor)
-  async updateStatus(id: number, status: AppointmentStatus, user: JwtPayload) {
+  async updateStatus(
+    id: number,
+    status: AppointmentStatus,
+    user: JwtPayload,
+  ) {
     return this.dataSource.transaction(async (manager) => {
       const appointment = await manager.findOne(Appointment, {
         where: { id },
-        relations: ['slot', 'slot.schedule', 'slot.schedule.doctor', 'patient'],
+        relations: ['slot', 'slot.schedule', 'slot.schedule.doctor', 'slot.service', 'patient','patient.user'],
         lock: { mode: 'pessimistic_write' },
       });
 
       if (!appointment) throw new NotFoundException('Appointment not found');
 
+      // Quyền hạn theo role
       if (user.role === 'doctor' && user.roleId) {
-        // Bác sĩ: chỉ update appointment của mình
         if (appointment.slot.schedule.doctor.id !== user.roleId) {
           throw new UnauthorizedException('You cannot update this appointment');
         }
-        // Bác sĩ chỉ được đánh dấu completed
         if (status !== AppointmentStatus.COMPLETED) {
           throw new BadRequestException('Doctors can only mark appointments as completed');
         }
       } else if (user.role === 'patient' && user.roleId) {
-        // Bệnh nhân: chỉ hủy appointment của chính mình
         if (appointment.patient.id !== user.roleId) {
           throw new UnauthorizedException('You cannot cancel this appointment');
         }
         if (status !== AppointmentStatus.CANCELLED) {
-          throw new BadRequestException(
-            'Patients can only cancel their appointments',
-          );
+          throw new BadRequestException('Patients can only cancel their appointments');
         }
       } else if (user.role === 'admin' || user.role === 'super_admin') {
-        // Admin/Super_admin có quyền làm tất cả
         if (![AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED, AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED].includes(status)) {
           throw new BadRequestException('Invalid status for admin');
         }
@@ -204,28 +207,21 @@ async createAppointment(dto: CreateAppointmentDto, user: JwtPayload) {
         throw new UnauthorizedException('You are not allowed to update this appointment');
       }
 
-      // Kiểm tra trạng thái hợp lệ chung
       const validStatuses = Object.values(AppointmentStatus);
       if (!validStatuses.includes(status)) {
         throw new BadRequestException('Invalid appointment status');
       }
 
-      // Business rule: chỉ Confirmed mới chuyển sang Completed
       if (status === AppointmentStatus.COMPLETED) {
         if (appointment.status !== AppointmentStatus.CONFIRMED) {
-          throw new BadRequestException(
-            'Only confirmed appointments can be completed',
-          );
+          throw new BadRequestException('Only confirmed appointments can be completed');
         }
       }
 
       appointment.status = status;
 
-      // Nếu hủy / từ chối => giải phóng slot
-      if (
-        status === AppointmentStatus.CANCELLED ||
-        status === AppointmentStatus.REJECTED
-      ) {
+      // Giải phóng slot nếu bị hủy hoặc từ chối
+      if (status === AppointmentStatus.CANCELLED || status === AppointmentStatus.REJECTED) {
         const { startTime, endTime, schedule } = appointment.slot;
         const doctorId = schedule.doctor.id;
 
@@ -240,9 +236,32 @@ async createAppointment(dto: CreateAppointmentDto, user: JwtPayload) {
         await manager.save(AppointmentSlot, overlappingSlots);
       }
 
-      return await manager.save(Appointment, appointment);
+      const savedAppointment = await manager.save(Appointment, appointment);
+
+      // Gửi email nếu admin xác nhận lịch hẹn
+      if (
+        (user.role === 'admin' || user.role === 'super_admin') &&
+        status === AppointmentStatus.CONFIRMED
+      ) {
+        try {
+          const date = moment(appointment.slot.startTime).format('DD/MM/YYYY');
+          const time = moment(appointment.slot.startTime).format('HH:mm');
+          await this.mailService.sendAppointmentConfirmation(
+            appointment.patient.user.email,
+            appointment.slot.schedule.doctor.fullName,
+            appointment.slot.service.name,
+            date,
+            time,
+          );
+        } catch (error) {
+          console.error('Failed to send confirmation email:', error);
+        }
+      }
+
+      return savedAppointment;
     });
   }
+
 
   // 5. Thay đổi lịch hẹn (Reschedule)
   async rescheduleAppointment(

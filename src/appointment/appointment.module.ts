@@ -10,10 +10,12 @@ import { Patient } from 'src/patients/entities/patient.entity';
 import { Service } from 'src/services/entities/service.entity';
 import { MedicalHistory } from 'src/history/entities/history.entity';
 import { AppointmentScheduler } from './services/appointment-scheduler.service';
+import { MailModule } from 'src/mailer/mailer.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment, AppointmentSlot, Patient, Service,MedicalHistory]),
+    MailModule
   ],
   controllers: [AppointmentController],
   providers: [AppointmentService,AppointmentScheduler],
